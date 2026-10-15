@@ -3,7 +3,7 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Copy dependency manifests
+# Copy dependency manifests and install dependencies
 COPY package*.json ./
 RUN npm install
 
@@ -20,10 +20,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Copy production dependencies and built code
-COPY package*.json ./
-RUN npm install --omit=dev
-
+# Copy installed dependencies and compiled dist directly from builder stage
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
 # Create uploads directory for persistent storage
