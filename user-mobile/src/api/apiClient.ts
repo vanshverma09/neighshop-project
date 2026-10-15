@@ -7,10 +7,22 @@ const API_BASE = 'http://localhost:5000/api';
 
 let authToken: string | null = null;
 let cachedUser: IUser | null = null;
+const authListeners = new Set<(user: IUser | null) => void>();
 
 export function setAuthToken(token: string | null, user?: IUser | null): void {
   authToken = token;
-  if (user !== undefined) cachedUser = user;
+  if (user !== undefined) {
+    cachedUser = user;
+  } else if (!token) {
+    cachedUser = null;
+  }
+  authListeners.forEach(listener => {
+    try {
+      listener(cachedUser);
+    } catch (e) {
+      console.warn('Auth listener error:', e);
+    }
+  });
 }
 
 export function getAuthToken(): string | null {
@@ -19,6 +31,13 @@ export function getAuthToken(): string | null {
 
 export function getCachedUser(): IUser | null {
   return cachedUser;
+}
+
+export function subscribeAuthChange(listener: (user: IUser | null) => void): () => void {
+  authListeners.add(listener);
+  return () => {
+    authListeners.delete(listener);
+  };
 }
 
 export async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -36,6 +55,10 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 401 && authToken) {
+      // Session expired
+      setAuthToken(null, null);
+    }
     throw new Error(data.message || `Request failed with status ${response.status}`);
   }
 
@@ -44,19 +67,53 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 
 export const userApi = {
   // Authentication
-  login: (email: string, password: string) =>
-    apiFetch<AuthResponse>('/auth/login', {
+  login: async (email: string, password: string) => {
+    const res = await apiFetch<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
-    }),
+    });
+    if (res.token && res.user) {
+      setAuthToken(res.token, res.user);
+    }
+    return res;
+  },
 
-  register: (data: { name: string; email: string; password: string; phone?: string }) =>
-    apiFetch<AuthResponse>('/auth/register', {
+  register: async (data: { name: string; email: string; password: string; phone?: string }) => {
+    const res = await apiFetch<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ ...data, role: 'buyer' })
-    }),
+    });
+    if (res.token && res.user) {
+      setAuthToken(res.token, res.user);
+    }
+    return res;
+  },
+
+  logout: async () => {
+    try {
+      if (authToken) {
+        await apiFetch('/auth/logout', { method: 'POST' });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setAuthToken(null, null);
+    }
+  },
 
   getProfile: () => apiFetch<{ success: boolean; user: IUser; stats: any }>('/auth/profile'),
+
+  updateProfile: async (data: { name?: string; phone?: string; avatar_url?: string }) => {
+    const res = await apiFetch<{ success: boolean; message: string; user: IUser }>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+    if (res.user) {
+      cachedUser = res.user;
+      authListeners.forEach(l => l(res.user));
+    }
+    return res;
+  },
 
   // Advertisements Feed
   getAdvertisements: (params: AdQueryParams = {}) => {
@@ -84,6 +141,9 @@ export const userApi = {
   // Categories
   getCategories: () =>
     apiFetch<{ success: boolean; categories: ICategory[] }>('/categories'),
+
+  getCategoryBySlug: (slug: string) =>
+    apiFetch<{ success: boolean; category: ICategory }>(`/categories/${slug}`),
 
   // Wishlist / Favorites
   getWishlist: () =>

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import HomeScreen from '../screens/HomeScreen';
+import CategoryBrowseScreen from '../screens/CategoryBrowseScreen';
 import ExploreScreen from '../screens/ExploreScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 import ChatsScreen from '../screens/ChatsScreen';
@@ -10,7 +11,14 @@ import ProfileScreen from '../screens/ProfileScreen';
 
 export type UserTabParamList = {
   Home: undefined;
-  Explore: undefined;
+  Categories: undefined;
+  Explore: {
+    initialSearch?: string;
+    initialCategory?: number;
+    initialSubcategory?: number;
+    initialCategoryName?: string;
+    initialCity?: string;
+  } | undefined;
   Wishlist: undefined;
   Chats: undefined;
   Profile: undefined;
@@ -36,6 +44,7 @@ function TabIcon({ icon, focused, label }: TabIconProps) {
 export default function UserTabNavigator() {
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
@@ -50,10 +59,17 @@ export default function UserTabNavigator() {
         }}
       />
       <Tab.Screen
+        name="Categories"
+        component={CategoryBrowseScreen}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon icon="🗂️" focused={focused} label="Categories" />
+        }}
+      />
+      <Tab.Screen
         name="Explore"
         component={ExploreScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="🔍" focused={focused} label="Explore" />
+          tabBarIcon: ({ focused }) => <TabIcon icon="🔍" focused={focused} label="Search" />
         }}
       />
       <Tab.Screen
@@ -87,8 +103,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
-    paddingBottom: 6,
-    paddingTop: 6,
+    paddingBottom: 4,
+    paddingTop: 4,
     elevation: 8,
     shadowColor: '#000000',
     shadowOpacity: 0.08,
@@ -98,11 +114,11 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 2,
   },
   tabIcon: {
-    fontSize: 20,
-    marginBottom: 2,
-    opacity: 0.6,
+    fontSize: 18,
+    opacity: 0.65,
   },
   tabIconActive: {
     opacity: 1,
@@ -110,11 +126,12 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: '500',
-    color: '#666666',
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 2,
   },
   tabLabelActive: {
     color: '#002f34',
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

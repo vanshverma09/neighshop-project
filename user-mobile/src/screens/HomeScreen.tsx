@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,18 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  Image,
   RefreshControl,
   ScrollView,
-  Dimensions,
-  ActivityIndicator,
   Alert
 } from 'react-native';
-import { userApi } from '../api/apiClient';
+import { userApi, getAuthToken } from '../api/apiClient';
 import { IAdvertisement } from '../types/advertisement.types';
 import { ICategory } from '../types/category.types';
+import ProductCard from '../components/ProductCard';
+import LoadingView from '../components/LoadingView';
+import EmptyState from '../components/EmptyState';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 36) / 2;
+const CITIES = ['All India', 'Mumbai', 'Bengaluru', 'Delhi', 'Hyderabad', 'Pune'];
 
 interface HomeScreenProps {
   navigation: any;
@@ -26,38 +25,42 @@ interface HomeScreenProps {
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [advertisements, setAdvertisements] = useState<IAdvertisement[]>([]);
+  const [featuredAds, setFeaturedAds] = useState<IAdvertisement[]>([]);
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [selectedCity, setSelectedCity] = useState('Mumbai');
+  const [selectedCity, setSelectedCity] = useState('All India');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
-      const [adsRes, catsRes] = await Promise.all([
+      const [adsRes, featRes, catsRes] = await Promise.all([
         userApi.getAdvertisements({
           city: selectedCity === 'All India' ? undefined : selectedCity,
           categoryId: selectedCategory || undefined,
           search: searchQuery || undefined,
-          limit: 20
+          limit: 24,
+          sort: 'newest'
         }),
-        userApi.getCategories()
+        userApi.getFeaturedAds().catch(() => ({ success: true, featured: [] })),
+        userApi.getCategories().catch(() => ({ success: true, categories: [] }))
       ]);
 
       setAdvertisements(adsRes.advertisements || []);
+      setFeaturedAds(featRes.featured || []);
       setCategories(catsRes.categories || []);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Error loading home data:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [selectedCategory, selectedCity, searchQuery]);
 
   useEffect(() => {
     loadData();
-  }, [selectedCategory, selectedCity]);
+  }, [loadData]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -65,47 +68,94 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const handleToggleFav = async (adId: number) => {
+    if (!getAuthToken()) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to save items to your favourites.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => navigation.navigate('Login') }
+        ]
+      );
+      return;
+    }
+
     try {
       const res = await userApi.toggleWishlist(adId);
       setAdvertisements(prev =>
         prev.map(ad => (ad.id === adId ? { ...ad, is_favourited: res.is_favourited } : ad))
       );
+      setFeaturedAds(prev =>
+        prev.map(ad => (ad.id === adId ? { ...ad, is_favourited: res.is_favourited } : ad))
+      );
     } catch (err: any) {
-      Alert.alert('Notice', err.message || 'Please log in to save items to your wishlist.');
+      Alert.alert('Notice', err.message || 'Unable to update favourite.');
+    }
+  };
+
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim()) {
+      navigation.navigate('Explore', {
+        initialSearch: searchQuery.trim(),
+        initialCategory: selectedCategory || undefined,
+        initialCity: selectedCity === 'All India' ? undefined : selectedCity
+      });
+    } else {
+      loadData();
     }
   };
 
   const renderHeader = () => (
-    <View>
-      {/* Location Bar */}
+    <View style={styles.headerContainer}>
+      {/* Location Selector Bar */}
       <View style={styles.locationBar}>
         <Text style={styles.locationPin}>📍</Text>
-        <TouchableOpacity
-          style={styles.locationSelector}
-          onPress={() => {
-            const nextCity = selectedCity === 'Mumbai' ? 'Bengaluru' : selectedCity === 'Bengaluru' ? 'All India' : 'Mumbai';
-            setSelectedCity(nextCity);
-          }}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.cityPills}
         >
-          <Text style={styles.locationText}>{selectedCity}, India</Text>
-          <Text style={styles.locationCaret}>▼</Text>
-        </TouchableOpacity>
+          {CITIES.map(city => (
+            <TouchableOpacity
+              key={city}
+              style={[
+                styles.cityChip,
+                selectedCity === city && styles.cityChipActive
+              ]}
+              onPress={() => setSelectedCity(city)}
+            >
+              <Text
+                style={[
+                  styles.cityChipText,
+                  selectedCity === city && styles.cityChipTextActive
+                ]}
+              >
+                {city}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
-      {/* Search Input */}
+      {/* Search Input Bar */}
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.searchInput}
-          placeholder="Find Cars, Mobile Phones, Laptops and more..."
+          placeholder="Find Cars, Mobile Phones, Laptops, Furniture..."
           placeholderTextColor="#64748b"
           value={searchQuery}
           onChangeText={setSearchQuery}
-          onSubmitEditing={loadData}
+          onSubmitEditing={handleSearchSubmit}
           returnKeyType="search"
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => { setSearchQuery(''); loadData(); }}>
+          <TouchableOpacity
+            onPress={() => {
+              setSearchQuery('');
+              loadData();
+            }}
+          >
             <Text style={styles.clearSearch}>✕</Text>
           </TouchableOpacity>
         )}
@@ -114,6 +164,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       {/* Category Pills (Horizontal Scroll) */}
       <View style={styles.sectionTitleRow}>
         <Text style={styles.sectionTitle}>Browse Categories</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
+          <Text style={styles.seeAllText}>See All →</Text>
+        </TouchableOpacity>
       </View>
       <ScrollView
         horizontal
@@ -125,7 +178,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           onPress={() => setSelectedCategory(null)}
         >
           <Text style={[styles.categoryText, selectedCategory === null && styles.categoryTextActive]}>
-            🌟 All Items
+            🌟 All
           </Text>
         </TouchableOpacity>
         {categories.map(cat => (
@@ -135,73 +188,52 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             onPress={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
           >
             <Text style={[styles.categoryText, selectedCategory === cat.id && styles.categoryTextActive]}>
-              {cat.name}
+              {cat.icon || '📦'} {cat.name}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
+      {/* Featured Advertisements Carousel */}
+      {featuredAds.length > 0 && selectedCategory === null && (
+        <View style={styles.featuredSection}>
+          <View style={styles.sectionTitleRow}>
+            <View style={styles.titleBadgeRow}>
+              <Text style={styles.sectionTitle}>⭐ Featured Ads</Text>
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>PROMOTED</Text>
+              </View>
+            </View>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.featuredScroll}
+          >
+            {featuredAds.map(item => (
+              <View key={item.id} style={styles.featuredCardWrapper}>
+                <ProductCard
+                  item={item}
+                  cardWidth={160}
+                  onPress={() => navigation.navigate('ProductDetail', { adId: item.id })}
+                  onToggleFav={handleToggleFav}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Fresh Recommendations Header */}
       <View style={styles.sectionTitleRow}>
         <Text style={styles.sectionTitle}>Fresh Recommendations</Text>
-        <Text style={styles.resultsCount}>{advertisements.length} ads</Text>
+        <Text style={styles.resultsCount}>{advertisements.length} listings</Text>
       </View>
     </View>
   );
 
-  const renderAdCard = ({ item }: { item: IAdvertisement }) => (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.88}
-      onPress={() => navigation.navigate('ProductDetail', { adId: item.id })}
-    >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: item.primary_image || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400' }}
-          style={styles.cardImage}
-          resizeMode="cover"
-        />
-        {item.is_featured && (
-          <View style={styles.featuredBadge}>
-            <Text style={styles.featuredBadgeText}>FEATURED</Text>
-          </View>
-        )}
-        <TouchableOpacity
-          style={styles.favButton}
-          onPress={() => handleToggleFav(item.id)}
-        >
-          <Text style={[styles.favIcon, item.is_favourited && styles.favIconActive]}>
-            {item.is_favourited ? '❤️' : '🤍'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.cardDetails}>
-        <Text style={styles.priceText}>
-          ₹{Number(item.price).toLocaleString('en-IN')}
-        </Text>
-        <Text style={styles.titleText} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <View style={styles.metaRow}>
-          <Text style={styles.locationMeta} numberOfLines={1}>
-            {item.location || item.city}
-          </Text>
-          <Text style={styles.dateMeta}>
-            {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
   if (loading && !refreshing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00a49f" />
-        <Text style={styles.loadingText}>Loading NeighShop Marketplace...</Text>
-      </View>
-    );
+    return <LoadingView message="Loading NeighShop Marketplace..." />;
   }
 
   return (
@@ -209,18 +241,32 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <FlatList
         data={advertisements}
         keyExtractor={item => item.id.toString()}
-        renderItem={renderAdCard}
+        renderItem={({ item }) => (
+          <ProductCard
+            item={item}
+            onPress={() => navigation.navigate('ProductDetail', { adId: item.id })}
+            onToggleFav={handleToggleFav}
+          />
+        )}
         numColumns={2}
         columnWrapperStyle={styles.rowWrapper}
         ListHeaderComponent={renderHeader}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#00a49f']} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#00a49f']} />
+        }
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyTitle}>No listings found in {selectedCity}</Text>
-            <Text style={styles.emptySubtitle}>Try changing your filter, location, or search keywords.</Text>
-          </View>
+          <EmptyState
+            icon="📦"
+            title={`No listings found in ${selectedCity}`}
+            description="Try changing your search query, location filter, or category."
+            actionLabel="View All Listings"
+            onAction={() => {
+              setSelectedCity('All India');
+              setSelectedCategory(null);
+              setSearchQuery('');
+            }}
+          />
         }
       />
     </View>
@@ -230,233 +276,161 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9'
+    backgroundColor: '#f1f5f9',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc'
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#002f34',
-    fontWeight: '600'
+  headerContainer: {
+    backgroundColor: '#f8fafc',
+    paddingBottom: 8,
   },
   locationBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#002f34',
-    paddingHorizontal: 16,
-    paddingVertical: 10
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   locationPin: {
     fontSize: 14,
-    marginRight: 6
+    marginRight: 6,
   },
-  locationSelector: {
+  cityPills: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: 6,
   },
-  locationText: {
+  cityChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  cityChipActive: {
+    backgroundColor: '#00a49f',
+  },
+  cityChipText: {
+    color: '#cbd5e1',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  cityChipTextActive: {
     color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700'
-  },
-  locationCaret: {
-    color: '#00a49f',
-    fontSize: 10,
-    marginLeft: 6
+    fontWeight: '800',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     marginHorizontal: 12,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
     borderRadius: 8,
     paddingHorizontal: 12,
     borderWidth: 1.5,
     borderColor: '#002f34',
-    height: 46
+    height: 44,
   },
   searchIcon: {
     fontSize: 15,
-    marginRight: 8
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
     color: '#002f34',
-    paddingVertical: 0
+    paddingVertical: 0,
   },
   clearSearch: {
     fontSize: 14,
     color: '#94a3b8',
-    paddingHorizontal: 4
+    paddingHorizontal: 4,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 14,
-    marginTop: 14,
-    marginBottom: 8
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  titleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
-    color: '#002f34'
+    color: '#002f34',
+    letterSpacing: -0.3,
+  },
+  seeAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#00a49f',
+  },
+  proBadge: {
+    backgroundColor: '#ffce32',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  proBadgeText: {
+    color: '#002f34',
+    fontSize: 9,
+    fontWeight: '800',
   },
   resultsCount: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748b',
-    fontWeight: '600'
+    fontWeight: '600',
   },
   categoriesScroll: {
     paddingHorizontal: 12,
-    paddingBottom: 6
+    paddingBottom: 4,
+    gap: 6,
   },
   categoryPill: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
     borderWidth: 1,
-    borderColor: '#cbd5e1'
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 6,
   },
   categoryPillActive: {
     backgroundColor: '#002f34',
-    borderColor: '#002f34'
+    borderColor: '#002f34',
   },
   categoryText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#002f34'
+    color: '#334155',
+    fontWeight: '600',
   },
   categoryTextActive: {
-    color: '#ffffff'
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  featuredSection: {
+    backgroundColor: '#fefce8',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#fef08a',
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  featuredScroll: {
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  featuredCardWrapper: {
+    marginRight: 10,
   },
   listContent: {
-    paddingBottom: 30
+    paddingBottom: 24,
   },
   rowWrapper: {
     justifyContent: 'space-between',
     paddingHorizontal: 12,
-    marginBottom: 12
   },
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2
-  },
-  imageContainer: {
-    width: '100%',
-    height: 140,
-    backgroundColor: '#e2e8f0',
-    position: 'relative'
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%'
-  },
-  featuredBadge: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    backgroundColor: '#ffce32',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4
-  },
-  featuredBadgeText: {
-    color: '#002f34',
-    fontSize: 9,
-    fontWeight: '800'
-  },
-  favButton: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: '#ffffff',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3
-  },
-  favIcon: {
-    fontSize: 14
-  },
-  favIconActive: {
-    color: '#ef4444'
-  },
-  cardDetails: {
-    padding: 10
-  },
-  priceText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#002f34',
-    marginBottom: 3
-  },
-  titleText: {
-    fontSize: 12.5,
-    color: '#334155',
-    fontWeight: '500',
-    lineHeight: 16,
-    minHeight: 32,
-    marginBottom: 6
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  locationMeta: {
-    fontSize: 10.5,
-    color: '#64748b',
-    flex: 1
-  },
-  dateMeta: {
-    fontSize: 10,
-    color: '#94a3b8',
-    marginLeft: 4
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#002f34',
-    marginBottom: 6
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: '#64748b',
-    textAlign: 'center'
-  }
 });

@@ -1,11 +1,20 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import SplashScreen from '../screens/SplashScreen';
 import UserTabNavigator from './UserTabNavigator';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
+import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import ReportAdScreen from '../screens/ReportAdScreen';
 
 export type UserRootStackParamList = {
-  MainTabs: undefined;
+  Splash: undefined;
+  MainTabs: { screen?: string } | undefined;
   ProductDetail: { adId: number };
+  Login: undefined;
+  Register: undefined;
+  ReportAd: { adId: number; adTitle: string };
 };
 
 const Stack = createNativeStackNavigator<UserRootStackParamList>();
@@ -13,7 +22,7 @@ const Stack = createNativeStackNavigator<UserRootStackParamList>();
 export default function UserRootNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="MainTabs"
+      initialRouteName="Splash"
       screenOptions={{
         headerStyle: {
           backgroundColor: '#002f34',
@@ -26,6 +35,11 @@ export default function UserRootNavigator() {
       }}
     >
       <Stack.Screen
+        name="Splash"
+        component={SplashScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="MainTabs"
         component={UserTabNavigator}
         options={{ headerShown: false }}
@@ -35,6 +49,24 @@ export default function UserRootNavigator() {
         component={ProductDetailScreen}
         options={{
           title: 'Ad Details',
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ReportAd"
+        component={ReportAdScreen}
+        options={{
+          title: 'Report Advertisement',
           headerShown: true,
         }}
       />

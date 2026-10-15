@@ -137,7 +137,7 @@ export async function getFeaturedAds(_req: Request, res: Response): Promise<void
   try {
     const items = await query<IAdvertisement>(`
       SELECT 
-        a.id, a.title, a.price, a.location, a.city, a.created_at, a.is_featured,
+        a.id, a.title, a.price, a.location, a.city, a.created_at, a.is_featured, a.status,
         c.name as category_name,
         (SELECT image_url FROM advertisement_images WHERE advertisement_id = a.id ORDER BY is_primary DESC, id ASC LIMIT 1) as primary_image
       FROM advertisements a

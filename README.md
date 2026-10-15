@@ -699,7 +699,87 @@ npm run test:m4
 
 ---
 
-## 5. Directory Structure
+## 5. Milestone 5: NeighShop Global User Mobile Application
+
+The NeighShop Global User Mobile Application (`user-mobile/`) is a dedicated classified marketplace mobile application built with **React Native, TypeScript, and React Navigation**. Inspired by the high-volume discovery mechanics of OLX India, it delivers a fluid, secure buying experience connected directly to the shared Node.js/Express backend API and MySQL database.
+
+```
+user-mobile/src/
+├── api/
+│   └── apiClient.ts              # Typed API client, session listeners & auto token attachment
+├── components/
+│   ├── ProductCard.tsx           # Reusable 2-column OLX card (price ₹, image, title, location, heart)
+│   ├── ImageGallery.tsx          # Multi-image viewer with pagination badge & thumbnail strip
+│   ├── EmptyState.tsx            # Reusable empty illustration with custom title & action CTA
+│   ├── LoadingView.tsx           # Brand loading spinner with custom message
+│   └── ErrorBanner.tsx           # Clean error alert with retry button
+├── navigation/
+│   ├── UserRootNavigator.tsx     # Native Stack: Splash, MainTabs, ProductDetail, Login, Register, ReportAd
+│   └── UserTabNavigator.tsx      # Bottom Tabs (6 Tabs): Home, Categories, Explore, Wishlist, Chats, Account
+├── screens/
+│   ├── SplashScreen.tsx          # Brand identity, session check, "Explore" & "Sign In" CTAs
+│   ├── LoginScreen.tsx           # Secure authentication with 1-click Buyer demo auto-fill
+│   ├── RegisterScreen.tsx        # Buyer onboarding with validation & instant token issuance
+│   ├── HomeScreen.tsx            # Location bar, search, category chips, Featured carousel & recommendations
+│   ├── CategoryBrowseScreen.tsx  # Hierarchy view of 7 categories, subcategories & approved ad counts
+│   ├── ExploreScreen.tsx         # Multi-criteria search, city, price range, condition chips & pagination
+│   ├── ProductDetailScreen.tsx   # Multi-photo carousel, bold price, seller details, call/chat actions
+│   ├── WishlistScreen.tsx        # Favourites hub with remove actions & database persistence
+│   ├── ChatsScreen.tsx           # Buyer enquiries and seller reply conversation threads
+│   ├── ProfileScreen.tsx         # Buyer details, stats, profile editor & logout action
+│   └── ReportAdScreen.tsx        # Safety complaint form with policy violation categories
+├── types/                        # Full TypeScript definitions for ads, users, categories, enquiries & reports
+├── App.tsx                       # SafeAreaProvider + NavigationContainer root
+└── tsconfig.json                 # Strict TypeScript compilation (0 errors)
+```
+
+### 5.1 Key Buyer Screens & Capabilities
+
+| # | Screen | Capabilities & Business Logic | Shared REST Endpoints |
+| :- | :--- | :--- | :--- |
+| **1** | **Splash & Onboarding** (`SplashScreen.tsx`) | Displays brand slogan, highlights safety features, inspects active session tokens, and offers direct access to either "Explore Marketplace" or "Sign In / Register". | `GET /api/auth/profile` |
+| **2** | **Authentication** (`LoginScreen.tsx` & `RegisterScreen.tsx`) | Secure password hashing, email validation, and a **1-click Buyer Demo button** (`buyer@neighshop.com` / `Buyer@123`). Automatically sets JWT token across the client and syncs buyer session. | `POST /api/auth/login`<br>`POST /api/auth/register` |
+| **3** | **Home Marketplace** (`HomeScreen.tsx`) | Location bar for rapid city switching (`All India`, `Mumbai`, `Bengaluru`, `Delhi`), search bar, backend-driven category chips, **Promoted Featured Carousel**, and **Fresh Recommendations** 2-column feed. | `GET /api/advertisements`<br>`GET /api/advertisements/featured`<br>`GET /api/categories` |
+| **4** | **Category Browsing** (`CategoryBrowseScreen.tsx`) | Comprehensive directory of all 7 primary categories with icons, descriptions, and active approved listing counters. Expands subcategory chips with direct filtered discovery. | `GET /api/categories`<br>`GET /api/categories/:slug` |
+| **5** | **Search Results & Filters** (`ExploreScreen.tsx`) | Live keyword search, price bounds (`minPrice`, `maxPrice`), city filter, product condition chips (`Brand New`, `Like New`, `Good`, `Fair`), sorting (`newest`, `price_asc`, `price_desc`), and server pagination (`page`, `totalPages`, Load More). | `GET /api/advertisements` |
+| **6** | **Product Details** (`ProductDetailScreen.tsx`) | Multi-image swipeable gallery (`ImageGallery.tsx`) with image counter, bold ₹ price, product condition badge, verified seller card (rating, total sales, member since), direct **Call Seller** modal, **Chat with Seller** modal, Wishlist toggle, and **Report Ad** CTA. | `GET /api/advertisements/:id`<br>`POST /api/wishlist/:id/toggle`<br>`POST /api/enquiries` |
+| **7** | **Favourites / Wishlist** (`WishlistScreen.tsx`) | Real-time list of bookmarked listings from MySQL. Users can remove items with immediate UI update or tap to view details. Protected by auth barrier when unauthenticated. | `GET /api/wishlist`<br>`POST /api/wishlist/:id/toggle` |
+| **8** | **Chats & Enquiries** (`ChatsScreen.tsx`) | Displays conversation threads initiated by the buyer. Shows ad thumbnail, price, inquiry message, sent date, and status badges (`⏳ Pending` vs `✓ Replied`). Displays seller reply text once responded. | `GET /api/enquiries/buyer` |
+| **9** | **Profile & Settings** (`ProfileScreen.tsx`) | Buyer account overview with avatar, name, email, phone, role badge (`Verified Buyer`), live stats (saved favourites count, sent inquiries count), profile editor modal (`PUT /auth/profile`), safety tips, and logout. | `GET /api/auth/profile`<br>`PUT /api/auth/profile`<br>`POST /api/auth/logout` |
+| **10** | **Safety Complaints** (`ReportAdScreen.tsx`) | Dedicated reporting interface allowing buyers to report suspicious listings across 6 policy categories (`counterfeit`, `fraud`, `spam`, `offensive`, `wrong_category`, `other`) with detailed explanations delivered to the admin moderation queue. | `POST /api/reports` |
+
+### 5.2 Navigation Architecture & State Management
+- **Native Stack Navigation (`UserRootNavigator.tsx`):** Root stack managing top-level transitions between `Splash`, `MainTabs`, `ProductDetail`, `Login`, `Register`, and `ReportAd`.
+- **Bottom Tab Navigation (`UserTabNavigator.tsx`):** 6-tab navigation system (`Home`, `Categories`, `Explore`, `Wishlist`, `Chats`, `Profile`) with active icon scaling and brand styling.
+- **Session State & Real-time Listeners:** `apiClient.ts` maintains the active token and notifies subscribers via `subscribeAuthChange()`. When a user signs in, updates their profile, or logs out, dependent tabs (Wishlist, Chats, Account, Home) immediately refresh their data without requiring an app reload.
+- **Privacy Assurance:** Seller and buyer profiles never expose raw passwords, password hashes, or internal authentication tokens.
+
+### 5.3 Automated Milestone 5 Verification Suite
+A comprehensive automated test script [backend/scripts/verify-milestone5.ts](file:///c:/Users/verma/OneDrive/Desktop/Project/backend/scripts/verify-milestone5.ts) verifies all buyer mobile workflows against the live backend API and database:
+```bash
+# Option A: From backend/ directory
+cd backend
+npm run test:m5
+
+# Option B: From user-mobile/ directory
+cd user-mobile
+npm run test:m5
+```
+
+**Verification Steps Executed by `test:m5`:**
+1. **User Registration, Login & Profile:** Registers a new buyer, confirms 401 on bad password, logs in successfully, verifies profile retrieval without password leaks, updates profile in database, and verifies session token.
+2. **Public Search Isolation Barrier:** Publishes a pending listing and strictly proves that it never appears in the public feed; confirms 100% of public listings have `status = 'approved'`.
+3. **Category Browsing & Taxonomy:** Retrieves all 7 primary categories, verifies subcategories and live approved ad counts, and resolves category slugs.
+4. **Multi-Criteria Search, Filtering & Pagination:** Tests keyword queries, city filters, price range boundaries, condition chips, monotonic ascending price sorting, and page limits.
+5. **Featured Advertisements Carousel:** Retrieves featured carousel ads and confirms all have `is_featured = true` and `status = 'approved'`.
+6. **Product Details & Seller Privacy:** Fetches listing details, confirms multi-image arrays, verifies seller rating and total deals, and proves absence of sensitive seller credentials.
+7. **Wishlist Database Persistence:** Toggles bookmark ON, verifies listing is returned in buyer wishlist, toggles bookmark OFF, and confirms removal.
+8. **Buyer Enquiries & Seller Responses:** Blocks self-enquiries, sends buyer inquiry, verifies delivery in buyer chat threads, replies as seller, and confirms buyer receives seller response.
+9. **Safety Complaint & Report Advertisement:** Files a safety complaint with policy violation reasons, confirms persistence in database, and verifies report appears in the administrative moderation queue.
+
+---
+
+## 6. Directory Structure
 
 ```text
 Project/
@@ -729,21 +809,30 @@ Project/
 │   │   └── server.ts                     # Express application entrypoint (Port 5000)
 │   ├── scripts/
 │   │   ├── verify-database.ts            # Milestone 2: Schema, constraint & cascade test suite
+│   │   ├── verify-milestone3.ts          # Milestone 3: 11-module REST API verification suite
+│   │   ├── verify-milestone4.ts          # Milestone 4: Admin Web application verification suite
+│   │   ├── verify-milestone5.ts          # Milestone 5: User Mobile application verification suite
 │   │   └── verify-e2e.ts                 # Full multi-role 8-stage automated workflow verification
 │   ├── package.json
 │   └── tsconfig.json
 │
 ├── user-mobile/                          # User Mobile Application (React Native + TS + React Navigation)
 │   ├── src/
-│   │   ├── api/apiClient.ts              # Typed User API Client
-│   │   ├── navigation/                   # UserTabNavigator (5 Tabs) & UserRootNavigator (Native Stack)
+│   │   ├── api/apiClient.ts              # Typed User API Client with session listeners
+│   │   ├── components/                   # ProductCard, ImageGallery, EmptyState, LoadingView, ErrorBanner
+│   │   ├── navigation/                   # UserTabNavigator (6 Tabs) & UserRootNavigator (Native Stack)
 │   │   ├── screens/
-│   │   │   ├── HomeScreen.tsx            # OLX location bar, category chips, 2-col feed, wishlist
-│   │   │   ├── ExploreScreen.tsx         # Search, condition filters (New, Like New, Good)
-│   │   │   ├── WishlistScreen.tsx        # Saved ads, quick contact, remove action
+│   │   │   ├── SplashScreen.tsx          # Brand identity, session check, "Explore" & "Sign In" CTAs
+│   │   │   ├── LoginScreen.tsx           # Buyer login with 1-click demo button
+│   │   │   ├── RegisterScreen.tsx        # Buyer onboarding with validation
+│   │   │   ├── HomeScreen.tsx            # OLX location bar, category chips, 2-col feed, featured carousel
+│   │   │   ├── CategoryBrowseScreen.tsx  # Full categories directory with subcategory chips & counts
+│   │   │   ├── ExploreScreen.tsx         # Multi-filter search (city, price, condition, sort, pagination)
+│   │   │   ├── ProductDetailScreen.tsx   # Photo gallery, bold ₹ price, seller card, enquiry & call modals
+│   │   │   ├── WishlistScreen.tsx        # Saved ads, quick remove action, database sync
 │   │   │   ├── ChatsScreen.tsx           # Buyer inquiry threads and seller responses
-│   │   │   ├── ProfileScreen.tsx         # Account card, safety guidelines, auth toggle
-│   │   │   └── ProductDetailScreen.tsx   # Photo carousel, bold ₹ price, seller card, enquiry modal
+│   │   │   ├── ProfileScreen.tsx         # Account card, stats, profile editor, logout
+│   │   │   └── ReportAdScreen.tsx        # Safety complaint submission form
 │   │   └── types/                        # Mirrored shared TypeScript models
 │   ├── App.tsx                           # SafeAreaProvider + NavigationContainer
 │   ├── index.js
@@ -792,7 +881,7 @@ Project/
 
 ---
 
-## 6. Safe Demonstration Credentials
+## 7. Safe Demonstration Credentials
 
 The database comes pre-seeded with verified test accounts across all three roles:
 
@@ -804,7 +893,7 @@ The database comes pre-seeded with verified test accounts across all three roles
 
 ---
 
-## 7. Quick-Start Guide (Running Locally)
+## 8. Quick-Start Guide (Running Locally)
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or higher (v26.x supported)
@@ -821,6 +910,7 @@ npm run build     # Compiles TypeScript (0 errors)
 npm run test:db   # Executes Milestone 2 database schema verification suite
 npm run test:m3   # Executes Milestone 3 11-module REST API verification suite
 npm run test:m4   # Executes Milestone 4 Admin Web application verification suite
+npm run test:m5   # Executes Milestone 5 User Mobile application verification suite
 npm run test:e2e  # Executes automated multi-role E2E workflow test
 npm start         # Starts backend on http://localhost:5000
 ```
@@ -859,6 +949,7 @@ npm run dev       # Starts interactive simulator on http://localhost:5174
 cd user-mobile
 npm install --legacy-peer-deps
 npm run typecheck # Strict TypeScript compilation (0 errors)
+npm run test:m5   # Executes Milestone 5 automated verification suite
 npm start         # Starts Metro bundler
 ```
 
@@ -872,11 +963,11 @@ npm start         # Starts Metro bundler
 
 ---
 
-## 8. Technical Evaluation Matrix
+## 9. Technical Evaluation Matrix
 
 | Requirement | Implementation Details | Status |
 | :--- | :--- | :---: |
-| **User Mobile App** | React Native, TypeScript, React Navigation (Tabs: Home, Explore, Wishlist, Chats, Account + ProductDetail Stack). OLX 2-column feed, location selector, category chips. | ✅ Verified (0 TS errors) |
+| **User Mobile App** | React Native, TypeScript, React Navigation (Tabs: Home, Categories, Explore, Wishlist, Chats, Profile + ProductDetail Stack). OLX 2-column feed, location selector, multi-filter search, category browsing, image gallery, enquiry modal, safety reporting. | ✅ Verified (`test:m5` + 0 TS errors) |
 | **Seller Mobile App** | React Native, TypeScript, React Navigation (Tabs: Studio, My Ads, + SELL, Inquiries, Storefront). Rejection reason feedback banner, status filters, buyer leads. | ✅ Verified (0 TS errors) |
 | **Admin Web App** | React.js, TypeScript, Vite. Executive KPIs, Pending Approvals queue with Approve/Reject modal, User moderation, Category CRUD, Reports Center, Audit Trail. | ✅ Verified (`test:m4` + 0 TS errors) |
 | **Shared Backend API** | Node.js, Express.js, TypeScript. JWT authentication, Role-Based Access Control (`buyer`, `seller`, `admin`), Multer file uploads, parameterized SQL. 11 functional modules tested. | ✅ Verified (`test:m3`) |
@@ -886,7 +977,7 @@ npm start         # Starts Metro bundler
 
 ---
 
-## 9. Explanatory Video Recording Guide (Section 12.2)
+## 10. Explanatory Video Recording Guide (Section 12.2)
 
 When recording the explanatory video, cover the following 12 key points:
 
@@ -901,7 +992,7 @@ When recording the explanatory video, cover the following 12 key points:
 9. **Buyer Inquiries**: Submit an enquiry from the Buyer view and respond to it from the Seller view.
 10. **Wishlist & Reporting**: Add an item to favorites and submit a safety report. Show the report appear in the Admin Panel's `Reports` center.
 11. **Backend Security & RBAC**: Point out the JWT authentication middleware (`src/middleware/auth.ts`) and role-based guards (`src/middleware/rbac.ts`).
-12. **Automated Verification**: Run `npm run test:db`, `npm run test:m3`, `npm run test:m4`, and `npm run test:e2e` in `backend/` to showcase all automated verification suites passing with 0 errors.
+12. **Automated Verification**: Run `npm run test:db`, `npm run test:m3`, `npm run test:m4`, `npm run test:m5`, and `npm run test:e2e` in `backend/` to showcase all automated verification suites passing with 0 errors.
 
 ---
 

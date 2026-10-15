@@ -8,7 +8,8 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test:m5": "npx tsx ../backend/scripts/verify-milestone5.ts"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^6.6.1",
