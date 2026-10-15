@@ -1139,11 +1139,137 @@ npm start         # Starts Metro bundler
 | **Database Architecture** | MySQL 8.0+ normalized schema (`schema.sql` and `seed.sql`). Seamless automatic zero-config fallback to SQLite for immediate testing. | ✅ Verified (`test:db`) |
 | **End-to-End Integration & QA** | Full 9-step cross-actor workflow + 26 automated negative and authorization security tests (Input validation, 401 unauth, 403 RBAC, cross-seller guards, self-approval prevention, upload security, 404 nonexistent records). | ✅ Verified (`test:m7` + `npm test` 100% pass) |
 | **End-to-End Moderation** | Full feedback loop from ad submission -> admin review -> rejection reason display to seller -> resubmission -> approval -> public discovery. | ✅ Verified (`test:e2e`) |
+| **Milestone 8: Cloud Deployment & APKs** | Zero-cost hosting architecture: Vercel (Admin Web), Render (Express API), Aiven (Managed MySQL), Cloudinary (Images), Expo EAS (Android APKs). Automated migration & deployment test suite. | ✅ Verified (`migrate:prod` + `test:deploy`) |
 | **Git & Clean Repository** | Clean multi-project repository structure, thorough documentation, test credentials, and runnable development servers. | ✅ Verified |
 
 ---
 
-## 11. Explanatory Video Recording Guide (Section 12.2)
+## 11. Milestone 8: Production Deployment & Cloud Hosting Guide
+
+NeighShop Global is architected for zero-cost, enterprise-grade deployment using modern cloud infrastructure. The complete stack can be hosted with **$0.00 infrastructure cost** on generous free tiers, or deployed with one command using Docker Compose on any VPS.
+
+### 11.1 Cloud Hosting Provider Selection & Cost Architecture ($0.00 / Month)
+
+| Component | Selected Hosting Provider | Free Tier Specifications & Limits | Monthly Cost | Rationale |
+| :--- | :--- | :--- | :---: | :--- |
+| **Admin Web App** | **Vercel** (or Render Static) | • 100 GB Bandwidth / Month<br>• Unlimited requests<br>• Global Edge CDN<br>• Automated HTTPS/SSL | **$0.00** | Native Vite SPA support, automatic preview deployments, zero maintenance. |
+| **Shared REST API** | **Render Web Service** (or Railway) | • 512 MB RAM, 0.1 CPU<br>• Free `.onrender.com` TLS/HTTPS<br>• Automatic GitHub continuous deploys | **$0.00** | Docker and Node.js native support, automatic health checks, instant deployment rollbacks. |
+| **Managed MySQL DB** | **Aiven for MySQL** (or Railway MySQL) | • 1 Node, 1 GB RAM, 5 GB Storage<br>• MySQL 8.0 with SSL/TLS<br>• Automated daily snapshots & backups | **$0.00** | True managed MySQL with connection pooling, SSL enforcement, and automated backups without cloud billing traps. |
+| **Persistent Images** | **Cloudinary CDN** (or Render Volume) | • 25 GB Monthly Net Storage<br>• 25,000 monthly transformations<br>• Global CDN distribution | **$0.00** | Zero disk loss on container restarts; direct HTTPS URLs with automatic format optimization (`f_auto,q_auto`). |
+| **Mobile Android Builds** | **Expo EAS Build (`eas-cli`)** | • 30 Free Android Builds / Month<br>• Cloud Linux build machines<br>• Produces standalone installable `.apk` | **$0.00** | Generates standalone Android `.apk` files in the cloud without requiring a 15GB local Android Studio / Gradle install. |
+
+---
+
+### 11.2 Step-by-Step Production Deployment Plan
+
+#### Step 1: Provision Managed MySQL Database & Apply Migrations
+1. Create a free account at [Aiven.io](https://aiven.io) or [Railway.app](https://railway.app).
+2. Create a new service: **MySQL 8.0** (Free plan).
+3. Copy your service URI (`mysql://avnadmin:PASSWORD@HOST:PORT/defaultdb?ssl-mode=REQUIRED`).
+4. Apply the normalized schema and seed data from your terminal:
+   ```bash
+   cd backend
+   DATABASE_URL="mysql://avnadmin:PASSWORD@HOST:PORT/defaultdb?ssl-mode=REQUIRED" npm run migrate:prod
+   ```
+   *The migration runner executes `schema.sql`, verifies all 10 tables, and initializes seed data.*
+
+#### Step 2: Configure Persistent Cloud Image Storage (Cloudinary)
+1. Sign up for a free tier account at [Cloudinary.com](https://cloudinary.com).
+2. Copy your **API Environment Variable** from the dashboard:
+   ```
+   CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+   ```
+3. *Our `StorageService` automatically routes listing photos to Cloudinary CDN whenever `CLOUDINARY_URL` is set, falling back to local persistent disk otherwise.*
+
+#### Step 3: Deploy Shared REST API Backend to Render
+1. Go to [Render Dashboard](https://dashboard.render.com) -> **New Web Service**.
+2. Connect your GitHub repository.
+3. Configure service settings:
+   - **Root Directory:** `backend`
+   - **Environment:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm run prod` (or Docker: uses `backend/Dockerfile`)
+4. Add Environment Variables in the Render dashboard:
+   ```env
+   NODE_ENV=production
+   PORT=5000
+   API_BASE_URL=https://<your-render-service>.onrender.com
+   DATABASE_URL=mysql://avnadmin:PASSWORD@HOST:PORT/defaultdb?ssl-mode=REQUIRED
+   JWT_SECRET=production_super_secure_jwt_secret_key_2026_vansh
+   JWT_EXPIRES_IN=7d
+   CORS_ORIGIN=*
+   CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+   ```
+5. Click **Create Web Service**. Verify health check at `https://<your-render-service>.onrender.com/api/health`.
+
+#### Step 4: Deploy Admin Web Panel to Vercel
+1. Go to [Vercel Dashboard](https://vercel.com/new) -> **Add New Project**.
+2. Import your GitHub repository.
+3. Configure project settings:
+   - **Root Directory:** `admin-web`
+   - **Framework Preset:** `Vite`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+4. Add Environment Variable:
+   ```env
+   VITE_API_URL=https://<your-render-service>.onrender.com/api
+   ```
+5. Click **Deploy**. Vercel will build and assign a live URL (e.g., `https://neighshop-admin.vercel.app`).
+6. *`admin-web/vercel.json` and `admin-web/public/_redirects` ensure SPA client-side routing works seamlessly across all refreshes.*
+
+#### Step 5: Configure CORS, Environment Secrets & HTTPS
+1. In your Render API settings, update `CORS_ORIGIN` with your live admin URL:
+   ```env
+   CORS_ORIGIN=https://neighshop-admin.vercel.app,http://localhost:5173
+   ```
+2. Verify that both Vercel and Render automatically provision free SSL certificates (HTTPS).
+
+#### Step 6: Build Installable Android APKs (React Native)
+Both mobile apps include configured `app.json` (package: `com.neighshop.user`, `com.neighshop.seller`) and `eas.json` (preview APK profile):
+
+1. Install EAS CLI globally and authenticate:
+   ```bash
+   npm install -g eas-cli
+   npx eas-cli login
+   ```
+2. **Build User Mobile APK:**
+   ```bash
+   cd user-mobile
+   npx eas-cli build -p android --profile preview
+   ```
+3. **Build Seller Mobile APK:**
+   ```bash
+   cd seller-mobile
+   npx eas-cli build -p android --profile preview
+   ```
+4. Expo builds the APK in the cloud and provides a QR code / download link to install the `.apk` directly onto any physical Android device or emulator!
+
+#### Step 7: Automated Live Environment Verification
+To verify your live deployed API, database, and moderation pipeline in one click:
+```bash
+cd backend
+DEPLOYED_API_URL=https://<your-render-service>.onrender.com/api npm run test:deploy
+```
+*This executes a full 10-step end-to-end verification directly against your live cloud deployment!*
+
+---
+
+### 11.3 Self-Hosted Alternative: One-Click Docker Compose
+If you prefer running the entire production stack on a private Virtual Private Server (VPS) or staging machine:
+```bash
+# 1. Start all services (MySQL 8.0, API on port 5000, Nginx Admin Web on port 80)
+docker-compose up -d --build
+
+# 2. Inspect container status
+docker-compose ps
+
+# 3. Check live health endpoint
+curl http://localhost:5000/api/health
+```
+
+---
+
+## 12. Explanatory Video Recording Guide (Section 12.2)
 
 When recording the explanatory video, cover the following 12 key points:
 
@@ -1163,4 +1289,5 @@ When recording the explanatory video, cover the following 12 key points:
 ---
 
 **Developed with care for NeighShop Global by Candidate Vansh.**
+
 

@@ -329,17 +329,30 @@ export async function initDatabase(): Promise<{ dbType: DatabaseClientType }> {
 
   if (requestedClient === 'mysql' || requestedClient === 'auto') {
     try {
-      console.log(`[DB] Attempting MySQL connection on ${ENV.DB_HOST}:${ENV.DB_PORT}...`);
-      const pool = mysql.createPool({
-        host: ENV.DB_HOST,
-        port: ENV.DB_PORT,
-        user: ENV.DB_USER,
-        password: ENV.DB_PASSWORD,
-        database: ENV.DB_NAME,
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0
-      });
+      const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+      const useSsl = process.env.DB_SSL === 'true' || (Boolean(databaseUrl) && !databaseUrl?.includes('localhost'));
+
+      console.log(`[DB] Attempting MySQL connection (${databaseUrl ? 'via DATABASE_URL' : `${ENV.DB_HOST}:${ENV.DB_PORT}`}, SSL: ${useSsl})...`);
+
+      const pool = databaseUrl
+        ? mysql.createPool({
+            uri: databaseUrl,
+            ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+            waitForConnections: true,
+            connectionLimit: 10,
+            queueLimit: 0,
+          })
+        : mysql.createPool({
+            host: ENV.DB_HOST,
+            port: ENV.DB_PORT,
+            user: ENV.DB_USER,
+            password: ENV.DB_PASSWORD,
+            database: ENV.DB_NAME,
+            ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+            waitForConnections: true,
+            connectionLimit: 10,
+            queueLimit: 0,
+          });
 
       await pool.query('SELECT 1');
       mysqlPool = pool;

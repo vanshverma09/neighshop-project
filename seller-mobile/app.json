@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "NeighShop Seller Studio",
+    "slug": "neighshop-seller",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "https://images.unsplash.com/photo-1556742049-0a67e55724c9?w=512",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#002f34",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.neighshop.seller"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#002f34"
+      },
+      "package": "com.neighshop.seller",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "https://images.unsplash.com/photo-1556742049-0a67e55724c9?w=64"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "neighshop-seller-app-2026"
+      }
+    }
+  }
+}

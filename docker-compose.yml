@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # --------------------------------------------------------------------------
+  # 1. Managed MySQL 8.0 Database Service with Automated Persistence & Backups
+  # --------------------------------------------------------------------------
+  db:
+    image: mysql:8.0
+    container_name: neighshop-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-neighshop_root_secure_2026}
+      MYSQL_DATABASE: ${DB_NAME:-neighshop_marketplace}
+      MYSQL_USER: ${DB_USER:-neighshop_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-neighshop_secure_pass_2026}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-neighshop_root_secure_2026}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - neighshop-network
+
+  # --------------------------------------------------------------------------
+  # 2. Shared REST API Backend Service (Node.js + Express + TypeScript)
+  # --------------------------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: neighshop-api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:5000}
+      JWT_SECRET: ${JWT_SECRET:-neighshop_production_jwt_secret_key_2026}
+      JWT_EXPIRES_IN: 7d
+      DB_CLIENT: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-neighshop_user}
+      DB_PASSWORD: ${DB_PASSWORD:-neighshop_secure_pass_2026}
+      DB_NAME: ${DB_NAME:-neighshop_marketplace}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+    volumes:
+      - api_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - neighshop-network
+
+  # --------------------------------------------------------------------------
+  # 3. Admin Web Panel Production Service (Nginx SPA Server)
+  # --------------------------------------------------------------------------
+  admin-web:
+    build:
+      context: ./admin-web
+      dockerfile: Dockerfile
+    container_name: neighshop-admin-web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - neighshop-network
+
+volumes:
+  mysql_data:
+    driver: local
+  api_uploads:
+    driver: local
+
+networks:
+  neighshop-network:
+    driver: bridge

@@ -15,7 +15,9 @@
     "test:m7": "tsx scripts/verify-milestone7.ts",
     "test:e2e": "tsx scripts/verify-e2e.ts",
     "test:db": "tsx scripts/verify-database.ts",
-    "test": "npm run test:db && npm run test:m3 && npm run test:m4 && npm run test:m5 && npm run test:m6 && npm run test:m7"
+    "test": "npm run test:db && npm run test:m3 && npm run test:m4 && npm run test:m5 && npm run test:m6 && npm run test:m7",
+    "migrate:prod": "tsx scripts/deploy-migrate.ts",
+    "test:deploy": "tsx scripts/verify-deployment.ts"
   },
   "keywords": [
     "olx",
@@ -31,6 +33,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { query, getOne, QueryResult } from '../database/db';
 import { IAdvertisement, IAdImage, AdQueryParams } from '../types/shared/advertisement.types';
+import { StorageService } from '../services/storageService';
 
 // 1. GET ALL APPROVED ADS (Public Marketplace with Filters & Pagination)
 export async function getAdvertisements(req: Request, res: Response): Promise<void> {
@@ -329,9 +330,9 @@ export async function createAdvertisement(req: Request, res: Response): Promise<
 
     // 1. Files uploaded via Multer
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-      req.files.forEach((file, index) => {
-        const fullUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
-        imagesToInsert.push({ url: fullUrl, isPrimary: index === 0 ? 1 : 0 });
+      const uploadedUrls = await StorageService.uploadMultiple(req.files as Express.Multer.File[], req);
+      uploadedUrls.forEach((url, index) => {
+        imagesToInsert.push({ url, isPrimary: index === 0 ? 1 : 0 });
       });
     }
 
@@ -507,9 +508,7 @@ export async function uploadImages(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const urls = (req.files as Express.Multer.File[]).map(file => {
-      return `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
-    });
+    const urls = await StorageService.uploadMultiple(req.files as Express.Multer.File[], req);
 
     res.status(200).json({
       success: true,

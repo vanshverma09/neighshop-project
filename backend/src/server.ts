@@ -20,10 +20,15 @@ const app = express();
 const PORT = ENV.PORT || 5000;
 
 // Middleware
+const allowedOrigins = ENV.CORS_ORIGIN.includes(',')
+  ? ENV.CORS_ORIGIN.split(',').map(s => s.trim())
+  : (ENV.CORS_ORIGIN === '*' ? '*' : [ENV.CORS_ORIGIN]);
+
 app.use(cors({
-  origin: '*',
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

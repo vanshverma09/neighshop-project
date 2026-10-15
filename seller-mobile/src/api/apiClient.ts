@@ -7,8 +7,9 @@ import {
   IUser,
   AuthResponse
 } from '../types';
+import { CONFIG } from '../config';
 
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = CONFIG.API_BASE;
 
 type AuthChangeListener = (user: IUser | null) => void;
 

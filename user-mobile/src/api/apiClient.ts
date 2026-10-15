@@ -2,8 +2,9 @@ import { IAdvertisement, AdQueryParams } from '../types/advertisement.types';
 import { ICategory } from '../types/category.types';
 import { IUser, AuthResponse } from '../types/user.types';
 import { IEnquiry } from '../types/enquiry.types';
+import { CONFIG } from '../config';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = CONFIG.API_BASE;
 
 let authToken: string | null = null;
 let cachedUser: IUser | null = null;
