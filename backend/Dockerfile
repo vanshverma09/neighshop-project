@@ -1,7 +1,10 @@
 # Multi-stage production Dockerfile for NeighShop Global Shared API
-FROM node:20-slim AS builder
+FROM node:20 AS builder
 
 WORKDIR /app
+
+# Ensure native compilation toolchain is present for native modules (better-sqlite3)
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifests and install dependencies
 COPY package*.json ./
