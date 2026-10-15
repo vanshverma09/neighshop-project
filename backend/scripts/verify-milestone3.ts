@@ -283,11 +283,13 @@ async function testModule4SearchFilteringSorting() {
   assert(!foundPending, 'SECURITY VIOLATION: Pending listing must not appear in public marketplace feed!');
   console.log(`   🛡️ 4.1 PUBLIC ISOLATION VERIFIED: Ad #${testAdId} [pending] is completely hidden from public feed`);
 
-  // 4.2 Search by keyword
-  const searchRes = await apiRequest('/advertisements?search=iPhone');
+  // 4.2 Search by keyword (dynamic from available approved ad)
+  const firstWord = publicFeed.data.advertisements[0]?.title.split(' ')[0] || 'Samsung';
+  const searchRes = await apiRequest(`/advertisements?search=${encodeURIComponent(firstWord)}`);
   assert(searchRes.status === 200, 'Search failed');
-  assert(searchRes.data.advertisements.length > 0, 'Keyword search for iPhone must find listings');
-  console.log(`   ✅ 4.2 Keyword search ("iPhone"): Found ${searchRes.data.advertisements.length} matching approved listings`);
+  assert(searchRes.data.advertisements.length > 0, `Keyword search for ${firstWord} must find listings`);
+  console.log(`   ✅ 4.2 Keyword search ("${firstWord}"): Found ${searchRes.data.advertisements.length} matching approved listings`);
+
 
   // 4.3 Filter by Category
   const catFilter = await apiRequest('/advertisements?categoryId=1');
@@ -440,7 +442,15 @@ async function testModule6SellerDashboard() {
   });
   assert(soldRes.status === 200, 'Mark as sold failed');
   console.log(`   ✅ 6.5 Owner marked Ad #1 as sold: "${soldRes.data.message}"`);
+
+  // Restore Ad #1 status to approved for test idempotency
+  await apiRequest('/admin/advertisements/1/status', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ status: 'approved' })
+  });
 }
+
 
 
 async function testModule7AdminUserManagement() {

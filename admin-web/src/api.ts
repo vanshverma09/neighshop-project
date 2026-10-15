@@ -3,7 +3,8 @@ import { IAdvertisement, AdQueryParams } from './types/advertisement.types';
 import { ICategory } from './types/category.types';
 import { IReport, IAdminLog } from './types/report.types';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+
 
 export function getAdminToken(): string | null {
   return localStorage.getItem('admin_token');

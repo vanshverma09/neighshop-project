@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "test": "npx tsx ../backend/scripts/verify-milestone4.ts",
+    "test:m4": "npx tsx ../backend/scripts/verify-milestone4.ts",
     "lint": "oxlint",
     "preview": "vite preview"
   },

@@ -622,7 +622,84 @@ npm run test:m3
 
 ---
 
-## 4. Directory Structure
+## 4. Milestone 4: Independent NeighShop Global Admin Web Application
+
+The NeighShop Global Admin Web Application (`admin-web/`) is an independent, enterprise-grade administrative dashboard built with **React, TypeScript, responsive Vanilla CSS**, and **Vite**. It provides platform administrators with real-time visibility, content moderation controls, user governance, category taxonomy management, and comprehensive audit tracking, strictly connected to the shared backend REST API and MySQL database.
+
+```
+admin-web/src/
+├── components/
+│   ├── Sidebar.tsx               # Professional dark sidebar with live pending badges & logout CTA
+│   ├── Header.tsx                # Global search input, moderation notifications & admin avatar pill
+│   └── Modal.tsx                 # Accessible, reusable dialog with backdrop dismiss & keyboard support
+├── views/
+│   ├── LoginView.tsx             # Dedicated admin login screen with autofill demo button & error banners
+│   ├── DashboardView.tsx         # Live KPI cards, quick pending approval cards & category distribution
+│   ├── PendingApprovalsView.tsx  # Moderation queue with high-res image previews & approve/reject modal
+│   ├── AdvertisementsView.tsx    # Comprehensive inventory table with search, filters, pagination & featured toggle
+│   ├── UsersView.tsx             # User & seller moderation registry with account suspension toggle
+│   ├── CategoriesView.tsx        # Category & subcategory taxonomy manager with deletion safety barriers
+│   ├── ReportsView.tsx           # Safety complaints review with resolution notes & instant listing takedown
+│   └── LogsView.tsx              # Immutable audit trail of all moderator decisions with timestamp & IP
+├── api.ts                        # Typed API client with JWT Bearer injection & environment URL fallback
+├── App.tsx                       # Authenticated session provider, role verification & tab navigation
+└── index.css                     # Responsive design system with glassmorphism, badges & animations
+```
+
+### 4.1 Key Administrative Modules & Features
+
+| # | Administrative View | Core Capabilities & Business Logic | Shared API Endpoints |
+| :- | :--- | :--- | :--- |
+| **1** | **Dedicated Login & RBAC** (`LoginView.tsx`) | Secure authentication with email/password, error banners, single-click autofill for quick evaluation, and instant JWT persistence. **Strict Backend Guard:** Frontend route checks are reinforced by backend `requireAdmin` middleware; non-admins receive `403 Forbidden`. | `POST /api/auth/login`<br>`POST /api/auth/logout` |
+| **2** | **Executive KPI Dashboard** (`DashboardView.tsx`) | Real-time statistics computed directly from the database: Total Users, Active Listings, Pending Approvals, Open Complaints, and Buyer Enquiries. Displays quick-action cards for pending ads and category breakdown with progress meters. | `GET /api/admin/stats` |
+| **3** | **Pending Approvals Queue** (`PendingApprovalsView.tsx`) | Card-based moderation queue displaying high-resolution image previews, product condition, price, seller name, location, and seller phone number. Clicking **Reject** triggers a modal requiring a mandatory rejection reason delivered to the seller. | `GET /api/admin/advertisements?status=pending`<br>`PATCH /api/admin/advertisements/:id/status` |
+| **4** | **Inventory Management** (`AdvertisementsView.tsx`) | Searchable inventory table supporting live keyword search, status filtering (`all`, `approved`, `pending`, `rejected`, `sold`), category dropdown, pagination, details modal, status changer, and **one-click featured star promotion toggle**. | `GET /api/admin/advertisements`<br>`PATCH /api/admin/advertisements/:id/featured`<br>`PATCH /api/admin/advertisements/:id/status` |
+| **5** | **User & Seller Moderation** (`UsersView.tsx`) | Platform account registry with search by name/email, role filter (`buyer`, `seller`, `admin`), and status filter (`active`, `suspended`). Moderators can suspend fraudulent accounts with immediate login blockage, or reactivate them. Admin accounts cannot be suspended. | `GET /api/admin/users`<br>`PATCH /api/admin/users/:id/status` |
+| **6** | **Category Taxonomy** (`CategoriesView.tsx`) | Primary category cards showing icon, description, and live approved ad count. Lists subcategories with display order. Includes modals to create new primary categories and subcategories. **Deletion Guard:** Deleting a category with active listings is blocked with an informative error. | `GET /api/categories`<br>`POST /api/categories`<br>`POST /api/categories/:id/subcategories`<br>`DELETE /api/categories/:id` |
+| **7** | **Reports & Complaints Center** (`ReportsView.tsx`) | Moderation queue for user-submitted safety reports with violation type badges (`counterfeit`, `spam`, `fraud`, `harassment`), description, reporter details, and seller email. Resolution modal captures moderator notes and provides an optional **immediate listing takedown** toggle. | `GET /api/admin/reports`<br>`PATCH /api/admin/reports/:id` |
+| **8** | **Platform Audit Logs** (`LogsView.tsx`) | Immutable chronological audit trail recording every moderator action (`approve_ad`, `reject_ad`, `feature_ad`, `suspend_user`, `activate_user`, `resolve_report`, `create_category`, `delete_category`) with admin ID, action badge, details, timestamp, and IP address. | `GET /api/admin/audit-logs` |
+
+### 4.2 Reusable UI Design System & Component Library
+The admin dashboard features a modern, responsive design system in Vanilla CSS:
+- **Navigation & Badges:** Fixed sidebar (`Sidebar.tsx`) with active state glow, animated counter badges for pending approvals and open complaints, and top header (`Header.tsx`) with search input and admin profile pill.
+- **Accessible Modals:** Reusable `Modal.tsx` supporting backdrop dismissal, ESC key closing, header, body, and footer actions.
+- **Rich Status Indicators:** Color-coded badges for statuses (`approved` green, `pending` amber, `rejected` red, `sold` purple, `suspended` dark red).
+- **Comprehensive States:** Dedicated loading spinners, error banners with retry buttons, and helpful empty state illustrations across all tabs.
+
+### 4.3 Environment-Based Configuration
+The admin web application connects to the shared backend through standard Vite environment variables:
+- `admin-web/.env`:
+  ```ini
+  VITE_API_URL=http://localhost:5000/api
+  ```
+- `admin-web/.env.example` is committed for version control and reproducible deployments.
+- In `admin-web/src/api.ts`, API calls dynamically resolve `import.meta.env.VITE_API_URL || 'http://localhost:5000/api'`.
+
+### 4.4 Automated Milestone 4 Verification Suite
+A comprehensive automated verification suite tests all 8 core workflows, database mutations, and security barriers:
+```bash
+# Option A: From backend/ directory
+cd backend
+npm run test:m4
+
+# Option B: From admin-web/ directory
+cd admin-web
+npm run test:m4
+```
+
+**Verification Steps Executed by `test:m4`:**
+1. **Admin Authentication & RBAC Barriers:** Verifies non-admins (buyers/sellers) receive `403 Forbidden` on admin APIs, unauthenticated requests receive `401 Unauthorized`, admin authenticates successfully, and admin logout endpoint functions.
+2. **Dashboard Statistics from Database:** Fetches live KPI metrics from `/api/admin/stats` and verifies user counts, listing counts by status, complaints, and category breakdown.
+3. **User & Seller Moderation:** Creates a test seller, verifies admin search finds the user, suspends the account, confirms suspended login is blocked with `403 Forbidden`, reactivates the account, and verifies admin self-suspension protection.
+4. **Pending Approvals & Moderation Workflow:** Creates a pending ad, confirms high-res image previews are attached, rejects with a mandatory feedback reason, verifies the rejected ad is hidden from public search, approves the ad, and confirms immediate discovery in public search.
+5. **Featured Advertisement Management:** Toggles featured status ON, verifies the ad appears in the public featured carousel, and toggles featured status OFF.
+6. **Category & Subcategory Taxonomy:** Creates a new primary category and subcategory, verifies deletion safety blocks deleting non-empty categories (`400 Bad Request`), and cleanly deletes an empty category.
+7. **Reports & Safety Complaints Center:** Files a safety complaint, reviews it in the admin queue, resolves the complaint with moderator notes and listing takedown, and verifies the offending ad is immediately rejected and hidden.
+8. **Platform Operations Audit Logs:** Retrieves audit logs from `/api/admin/audit-logs` and verifies that all moderator decisions are recorded with immutable action types, target IDs, and timestamps.
+
+---
+
+## 5. Directory Structure
 
 ```text
 Project/
@@ -715,7 +792,7 @@ Project/
 
 ---
 
-## 5. Safe Demonstration Credentials
+## 6. Safe Demonstration Credentials
 
 The database comes pre-seeded with verified test accounts across all three roles:
 
@@ -727,7 +804,7 @@ The database comes pre-seeded with verified test accounts across all three roles
 
 ---
 
-## 6. Quick-Start Guide (Running Locally)
+## 7. Quick-Start Guide (Running Locally)
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or higher (v26.x supported)
@@ -743,6 +820,7 @@ npm install
 npm run build     # Compiles TypeScript (0 errors)
 npm run test:db   # Executes Milestone 2 database schema verification suite
 npm run test:m3   # Executes Milestone 3 11-module REST API verification suite
+npm run test:m4   # Executes Milestone 4 Admin Web application verification suite
 npm run test:e2e  # Executes automated multi-role E2E workflow test
 npm start         # Starts backend on http://localhost:5000
 ```
@@ -756,6 +834,7 @@ In a second terminal:
 cd admin-web
 npm install
 npm run build     # Validates TypeScript & builds production bundle (0 errors)
+npm run test:m4   # Executes Milestone 4 automated test suite
 npm run dev       # Starts dev server on http://localhost:5173
 ```
 - Open `http://localhost:5173` in your browser.
@@ -793,13 +872,13 @@ npm start         # Starts Metro bundler
 
 ---
 
-## 7. Technical Evaluation Matrix
+## 8. Technical Evaluation Matrix
 
 | Requirement | Implementation Details | Status |
 | :--- | :--- | :---: |
 | **User Mobile App** | React Native, TypeScript, React Navigation (Tabs: Home, Explore, Wishlist, Chats, Account + ProductDetail Stack). OLX 2-column feed, location selector, category chips. | ✅ Verified (0 TS errors) |
 | **Seller Mobile App** | React Native, TypeScript, React Navigation (Tabs: Studio, My Ads, + SELL, Inquiries, Storefront). Rejection reason feedback banner, status filters, buyer leads. | ✅ Verified (0 TS errors) |
-| **Admin Web App** | React.js, TypeScript, Vite. Executive KPIs, Pending Approvals queue with Approve/Reject modal, User moderation, Category CRUD, Reports Center, Audit Trail. | ✅ Verified (0 TS errors) |
+| **Admin Web App** | React.js, TypeScript, Vite. Executive KPIs, Pending Approvals queue with Approve/Reject modal, User moderation, Category CRUD, Reports Center, Audit Trail. | ✅ Verified (`test:m4` + 0 TS errors) |
 | **Shared Backend API** | Node.js, Express.js, TypeScript. JWT authentication, Role-Based Access Control (`buyer`, `seller`, `admin`), Multer file uploads, parameterized SQL. 11 functional modules tested. | ✅ Verified (`test:m3`) |
 | **Database Architecture** | MySQL 8.0+ normalized schema (`schema.sql` and `seed.sql`). Seamless automatic zero-config fallback to SQLite for immediate testing. | ✅ Verified (`test:db`) |
 | **End-to-End Moderation** | Full feedback loop from ad submission -> admin review -> rejection reason display to seller -> resubmission -> approval -> public discovery. | ✅ Verified (`test:e2e`) |
@@ -807,7 +886,7 @@ npm start         # Starts Metro bundler
 
 ---
 
-## 8. Explanatory Video Recording Guide (Section 12.2)
+## 9. Explanatory Video Recording Guide (Section 12.2)
 
 When recording the explanatory video, cover the following 12 key points:
 
@@ -822,7 +901,7 @@ When recording the explanatory video, cover the following 12 key points:
 9. **Buyer Inquiries**: Submit an enquiry from the Buyer view and respond to it from the Seller view.
 10. **Wishlist & Reporting**: Add an item to favorites and submit a safety report. Show the report appear in the Admin Panel's `Reports` center.
 11. **Backend Security & RBAC**: Point out the JWT authentication middleware (`src/middleware/auth.ts`) and role-based guards (`src/middleware/rbac.ts`).
-12. **Automated Verification**: Run `npm run test:db`, `npm run test:m3`, and `npm run test:e2e` in `backend/` to showcase all automated verification suites passing with 0 errors.
+12. **Automated Verification**: Run `npm run test:db`, `npm run test:m3`, `npm run test:m4`, and `npm run test:e2e` in `backend/` to showcase all automated verification suites passing with 0 errors.
 
 ---
 
