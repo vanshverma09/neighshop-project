@@ -8,7 +8,8 @@
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "prod": "node dist/server.js",
-    "test:e2e": "tsx scripts/verify-e2e.ts"
+    "test:e2e": "tsx scripts/verify-e2e.ts",
+    "test:db": "tsx scripts/verify-database.ts"
   },
   "keywords": [
     "olx",

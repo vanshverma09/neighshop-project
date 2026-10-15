@@ -1,4 +1,4 @@
-export type AdStatus = 'pending' | 'approved' | 'rejected' | 'sold';
+export type AdStatus = 'pending' | 'approved' | 'rejected' | 'sold' | 'inactive';
 export type ProductCondition = 'new' | 'used_like_new' | 'used_good' | 'used_fair';
 
 export interface IAdImage {

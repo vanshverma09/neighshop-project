@@ -1,13 +1,13 @@
 -- ====================================================================
 -- NEIGHSHOP GLOBAL - OLX-INSPIRED CLASSIFIED MARKETPLACE
--- COMPREHENSIVE SEED DATA
+-- MILESTONE 2: COMPREHENSIVE SEED DATA
 -- Default Test Logins:
 -- Admin:  admin@neighshop.com  / Admin@123
 -- Seller: seller@neighshop.com / Seller@123
 -- Buyer:  buyer@neighshop.com  / Buyer@123
 -- ====================================================================
 
--- 1. SEED USERS
+-- 1. SEED USERS (Safe development hashes: Admin@123, Seller@123, Buyer@123)
 INSERT INTO users (id, name, email, password_hash, phone, avatar_url, role, status) VALUES
 (1, 'Admin Moderator', 'admin@neighshop.com', '$2b$10$2ooP9mkVkU4MlHQQ4I1qcOiQTOwiTuLrTRfL6IGVR.SyolHn42SNe', '+91 9820011223', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', 'admin', 'active'),
 (2, 'Vansh Verma (Seller)', 'seller@neighshop.com', '$2b$10$nv7vG9zPTSOdnb7PRD3ngu3iCcSrJEgDyqBYiSYVF.v2j2yWMgdAW', '+91 9811223344', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', 'seller', 'active'),
@@ -62,7 +62,7 @@ INSERT INTO subcategories (id, category_id, name, slug, display_order) VALUES
 (23, 7, 'Home Repair & Electrician', 'home-repair', 1),
 (24, 7, 'Packers & Movers', 'packers-movers', 2);
 
--- 5. SEED ADVERTISEMENTS
+-- 5. SEED ADVERTISEMENTS (Covering all explicit statuses: approved, pending, rejected, sold, inactive)
 INSERT INTO advertisements (id, seller_id, category_id, subcategory_id, title, description, price, product_condition, location, city, state, contact_phone, contact_email, status, rejection_reason, is_featured, views_count, created_at) VALUES
 (1, 2, 1, 1, 'Apple iPhone 14 Pro 128GB Space Black (Mint Condition)', 'Selling my Apple iPhone 14 Pro in flawless condition. 128GB storage, Space Black color. Battery health is at 94%. Always used with Spigen screen protector and silicone case. Comes with original box, Apple invoice, and brand new braided Lightning cable. No scratches or dents.', 64999.00, 'used_like_new', 'Bandra West, Hill Road', 'Mumbai', 'Maharashtra', '+91 9811223344', 'seller@neighshop.com', 'approved', NULL, TRUE, 342, NOW() - INTERVAL 2 DAY),
 
@@ -80,16 +80,19 @@ INSERT INTO advertisements (id, seller_id, category_id, subcategory_id, title, d
 
 (8, 2, 4, 14, 'Sony Bravia 55 inch 4K Ultra HD Smart Google TV', 'Sony Bravia 55X74L series with Triluminos Pro display, Dolby Audio, voice remote. Purchased 1 year back, bill and wall mount bracket included.', 42000.00, 'used_good', 'Malad Link Road', 'Mumbai', 'Maharashtra', '+91 9811223344', 'seller@neighshop.com', 'approved', NULL, FALSE, 145, NOW() - INTERVAL 2 DAY),
 
--- PENDING APPROVAL LISTINGS (Ready for Admin Review Test)
+-- Status: PENDING (Admin Moderation Queue)
 (9, 2, 1, 3, 'Apple Watch Series 8 45mm GPS Midnight Aluminum', 'Apple Watch Series 8 with blood oxygen sensor, ECG, and always-on retina display. Battery health 98%. Selling because upgraded to Ultra.', 24500.00, 'used_like_new', 'Bandra West', 'Mumbai', 'Maharashtra', '+91 9811223344', 'seller@neighshop.com', 'pending', NULL, FALSE, 12, NOW()),
 
 (10, 4, 2, 7, 'Ather 450X Gen 3 Electric Scooter (TrueRange 105km)', 'Space grey Ather 450X with Warp mode, Google Maps navigation dashboard. 6,800 KM run. Home charger unit included.', 92000.00, 'used_good', 'HSR Layout', 'Bengaluru', 'Karnataka', '+91 9876543210', 'rohit.store@gmail.com', 'pending', NULL, FALSE, 8, NOW()),
 
--- REJECTED LISTING (Shows rejection reason to seller)
+-- Status: REJECTED (Stores exact rejection reason from admin moderation)
 (11, 2, 6, 22, 'Rolex Submariner Watch Replica First Copy', 'Brand new high quality automatic movement replica watch.', 8500.00, 'new', 'Dadar', 'Mumbai', 'Maharashtra', '+91 9811223344', 'seller@neighshop.com', 'rejected', 'Violates marketplace policy: Counterfeit, replica, and unverified luxury goods are strictly prohibited.', FALSE, 5, NOW() - INTERVAL 7 DAY),
 
--- SOLD LISTING
-(12, 4, 5, 18, 'Solid Sheesham Wood King Size Bed with Storage', 'King size hydraulic storage bed with Wakefit orthopedic memory foam mattress.', 18000.00, 'used_good', 'Whitefield', 'Bengaluru', 'Karnataka', '+91 9876543210', 'rohit.store@gmail.com', 'sold', NULL, FALSE, 430, NOW() - INTERVAL 10 DAY);
+-- Status: SOLD (Marketplace item completed transaction)
+(12, 4, 5, 18, 'Solid Sheesham Wood King Size Bed with Storage', 'King size hydraulic storage bed with Wakefit orthopedic memory foam mattress.', 18000.00, 'used_good', 'Whitefield', 'Bengaluru', 'Karnataka', '+91 9876543210', 'rohit.store@gmail.com', 'sold', NULL, FALSE, 430, NOW() - INTERVAL 10 DAY),
+
+-- Status: INACTIVE (Deactivated by seller temporarily)
+(13, 2, 4, 13, 'Lenovo ThinkPad T14 Gen 2 (Temporarily Inactive)', 'Temporarily paused while seller is traveling out of town.', 45000.00, 'used_good', 'Bandra West', 'Mumbai', 'Maharashtra', '+91 9811223344', 'seller@neighshop.com', 'inactive', NULL, FALSE, 24, NOW() - INTERVAL 12 DAY);
 
 -- 6. SEED ADVERTISEMENT IMAGES
 INSERT INTO advertisement_images (advertisement_id, image_url, is_primary, display_order) VALUES
@@ -120,9 +123,10 @@ INSERT INTO advertisement_images (advertisement_id, image_url, is_primary, displ
 (9, 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=800', TRUE, 1),
 (10, 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=800', TRUE, 1),
 (11, 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800', TRUE, 1),
-(12, 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800', TRUE, 1);
+(12, 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800', TRUE, 1),
+(13, 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=800', TRUE, 1);
 
--- 7. SEED FAVOURITES (Buyer wishlist)
+-- 7. SEED FAVOURITES (Buyer Wishlist)
 INSERT INTO favourites (user_id, advertisement_id) VALUES
 (3, 1),
 (3, 3),
@@ -138,7 +142,13 @@ INSERT INTO reports (id, advertisement_id, reporter_id, reason, description, sta
 (1, 11, 3, 'counterfeit', 'Seller is openly selling a replica fake Rolex watch. Counterfeits violate platform terms.', 'resolved', 'Advertisement confirmed as policy violation and rejected from public marketplace.', NOW() - INTERVAL 6 DAY),
 (2, 2, 3, 'wrong_category', 'Checking if car has clear title papers before booking test drive.', 'pending', NULL, NOW() - INTERVAL 12 HOUR);
 
--- 10. SEED ADMIN AUDIT LOGS
+-- 10. SEED FEATURED ADVERTISEMENTS
+INSERT INTO featured_advertisements (id, advertisement_id, priority, start_date, end_date) VALUES
+(1, 1, 1, NOW() - INTERVAL 2 DAY, NOW() + INTERVAL 28 DAY),
+(2, 2, 2, NOW() - INTERVAL 3 DAY, NOW() + INTERVAL 27 DAY),
+(3, 3, 3, NOW() - INTERVAL 1 DAY, NOW() + INTERVAL 29 DAY);
+
+-- 11. SEED ADMINISTRATIVE AUDIT LOGS
 INSERT INTO admin_logs (admin_id, action_type, target_entity, target_id, details) VALUES
 (1, 'approve_ad', 'advertisement', 1, 'Approved iPhone 14 Pro ad after checking IMEI and invoice photo.'),
 (1, 'approve_ad', 'advertisement', 2, 'Approved Hyundai Creta 2022 listing.'),

@@ -154,6 +154,16 @@ function initSqliteDatabase(): void {
       FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS featured_advertisements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      advertisement_id INTEGER NOT NULL,
+      priority INTEGER DEFAULT 1,
+      start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      end_date DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (advertisement_id) REFERENCES advertisements(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS admin_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       admin_id INTEGER NOT NULL,
