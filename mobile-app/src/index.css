@@ -1,0 +1,621 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --font-main: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  /* OLX Iconic Color Palette */
+  --olx-navy: #002f34;
+  --olx-navy-dark: #001f22;
+  --olx-teal: #00a49f;
+  --olx-teal-light: #e6f7f6;
+  --olx-yellow: #ffce32;
+  --olx-yellow-dark: #f5b700;
+  
+  /* Surfaces */
+  --bg-page: #f2f4f5;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  
+  /* Text */
+  --text-main: #002f34;
+  --text-muted: #5e7377;
+  --text-light: #8e9da0;
+  --text-white: #ffffff;
+  
+  /* Borders */
+  --border-color: #ebedee;
+  --border-focus: #00a49f;
+  
+  /* Statuses */
+  --status-approved: #16a34a;
+  --status-pending: #d97706;
+  --status-rejected: #dc2626;
+  --status-sold: #64748b;
+  
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 47, 52, 0.08);
+  --shadow-hover: 0 4px 12px rgba(0, 47, 52, 0.12);
+  --shadow-float: 0 10px 25px -5px rgba(0, 47, 52, 0.2);
+  
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: #0b1517;
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* App Simulator Container */
+.simulator-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #0f1d21;
+  background-image: radial-gradient(circle at 50% 0%, rgba(0, 164, 159, 0.15) 0%, transparent 60%);
+  padding: 16px;
+}
+
+.simulator-toolbar {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 47, 52, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 10px 18px;
+  margin-bottom: 16px;
+  color: #fff;
+  z-index: 50;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.simulator-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.simulator-brand h1 {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: #fff;
+}
+
+.simulator-brand span {
+  font-size: 11px;
+  background: var(--olx-yellow);
+  color: var(--olx-navy);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+}
+
+.device-frame {
+  width: 100%;
+  max-width: 440px;
+  height: 900px;
+  max-height: 92vh;
+  background: var(--bg-page);
+  border-radius: 36px;
+  border: 10px solid #1a2a2d;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transition: max-width 0.3s ease;
+}
+
+.device-frame.desktop-mode {
+  max-width: 1100px;
+  border-radius: 16px;
+  border: 4px solid #1a2a2d;
+  height: 94vh;
+}
+
+/* Phone Status Bar */
+.phone-status-bar {
+  height: 28px;
+  background: var(--olx-navy);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  z-index: 40;
+}
+
+/* App Main Container */
+.app-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: relative;
+  background: var(--bg-page);
+}
+
+/* Top App Bar (OLX Style Header) */
+.olx-header {
+  background: var(--olx-navy);
+  color: #fff;
+  padding: 12px 16px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.location-picker-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.location-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: var(--transition);
+}
+
+.location-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  height: 42px;
+  gap: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.search-input-wrapper input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--text-main);
+  background: transparent;
+}
+
+.search-input-wrapper input::placeholder {
+  color: var(--text-light);
+}
+
+/* Category Strip */
+.category-strip {
+  background: #fff;
+  padding: 14px 12px 10px;
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  white-space: nowrap;
+  display: flex;
+  gap: 14px;
+  scrollbar-width: none;
+}
+.category-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.category-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  min-width: 68px;
+  text-align: center;
+  transition: var(--transition);
+}
+
+.cat-icon-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #f0f7f7;
+  color: var(--olx-navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d9eeec;
+  transition: var(--transition);
+}
+
+.category-chip:hover .cat-icon-circle,
+.category-chip.active .cat-icon-circle {
+  background: var(--olx-navy);
+  color: var(--olx-yellow);
+  border-color: var(--olx-navy);
+  transform: translateY(-2px);
+}
+
+.category-chip span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  max-width: 72px;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.category-chip.active span {
+  color: var(--olx-teal);
+  font-weight: 700;
+}
+
+/* Banner Slider */
+.banner-slider {
+  padding: 14px 16px 4px;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.banner-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.banner-card {
+  min-width: 290px;
+  background: linear-gradient(135deg, #002f34 0%, #004d56 100%);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  flex-shrink: 0;
+}
+
+.banner-card h3 {
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+.banner-card p {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 10px;
+}
+
+.banner-btn {
+  background: var(--olx-yellow);
+  color: var(--olx-navy);
+  border: none;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+/* Section Header */
+.feed-header {
+  padding: 16px 16px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.feed-header h2 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--olx-navy);
+  letter-spacing: -0.2px;
+}
+
+/* Product Cards Grid (OLX 2-Column Style) */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 0 12px 24px;
+}
+
+.desktop-mode .product-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 0 20px 30px;
+}
+
+.product-card {
+  background: #fff;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: #cbd5e1;
+}
+
+.card-image-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.card-image-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.product-card:hover .card-image-box img {
+  transform: scale(1.04);
+}
+
+.featured-ribbon {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--olx-yellow);
+  color: var(--olx-navy);
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fav-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  color: var(--olx-navy);
+  transition: var(--transition);
+}
+
+.fav-btn:hover {
+  transform: scale(1.1);
+}
+
+.fav-btn.favorited {
+  color: #ef4444;
+}
+
+.card-content {
+  padding: 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.card-price {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--olx-navy);
+  line-height: 1.2;
+}
+
+.card-title {
+  font-size: 12.5px;
+  color: #406367;
+  font-weight: 500;
+  margin-top: 4px;
+  line-height: 1.3;
+  display: -webkit-box;
+  WebkitLineClamp: 2;
+  WebkitBoxOrient: 'vertical';
+  overflow: hidden;
+  height: 32px;
+}
+
+.card-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+/* Bottom Navigation (OLX 5-Tab Bar) */
+.bottom-nav {
+  height: 60px;
+  background: #fff;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: sticky;
+  bottom: 0;
+  z-index: 35;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.bottom-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--olx-navy);
+  font-size: 10.5px;
+  font-weight: 600;
+  gap: 3px;
+  flex: 1;
+  position: relative;
+  transition: var(--transition);
+}
+
+.bottom-tab.active {
+  color: var(--olx-teal);
+  font-weight: 800;
+}
+
+/* The Iconic OLX Raised Circular SELL Button */
+.sell-tab-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #002f34 0%, #004d56 100%);
+  color: #fff;
+  border: 4px solid var(--olx-yellow);
+  box-shadow: 0 4px 12px rgba(0, 47, 52, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-top: -18px;
+  transition: var(--transition);
+}
+
+.sell-tab-btn:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 47, 52, 0.45);
+}
+
+/* Mobile Modals / Full Screen Views */
+.screen-overlay {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.screen-header {
+  height: 54px;
+  background: var(--olx-navy);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.screen-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+  flex: 1;
+}
+
+.screen-body {
+  padding: 16px;
+  flex: 1;
+}
+
+/* Buttons in mobile app */
+.olx-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+  text-decoration: none;
+  width: 100%;
+}
+
+.olx-btn-primary {
+  background: var(--olx-navy);
+  color: #fff;
+}
+.olx-btn-primary:hover {
+  background: var(--olx-navy-dark);
+}
+
+.olx-btn-secondary {
+  background: #fff;
+  border: 2px solid var(--olx-navy);
+  color: var(--olx-navy);
+}
+
+.olx-btn-call {
+  background: #16a34a;
+  color: #fff;
+}
+
+.olx-btn-chat {
+  background: var(--olx-navy);
+  color: #fff;
+}
