@@ -24,8 +24,13 @@ async function runProductionMigrations() {
   try {
     if (databaseUrl) {
       console.log(`🔌 Connecting to MySQL using connection URI (SSL: ${useSsl})...`);
+      const parsedUrl = new URL(databaseUrl);
       connection = await mysql.createConnection({
-        uri: databaseUrl,
+        host: parsedUrl.hostname,
+        port: parseInt(parsedUrl.port || '3306', 10),
+        user: decodeURIComponent(parsedUrl.username),
+        password: decodeURIComponent(parsedUrl.password),
+        database: parsedUrl.pathname.replace(/^\//, '') || 'defaultdb',
         ssl: useSsl ? { rejectUnauthorized: false } : undefined,
         multipleStatements: true,
       });
@@ -51,7 +56,11 @@ async function runProductionMigrations() {
       throw new Error(`Schema file not found at: ${schemaPath}`);
     }
 
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    let schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    // Sanitize schema for managed cloud databases (e.g., Aiven defaultdb) where CREATE DATABASE is restricted
+    schemaSql = schemaSql.replace(/CREATE DATABASE\s+IF\s+NOT\s+EXISTS\s+[^;]+;/gi, '-- Skipped CREATE DATABASE for managed cloud target');
+    schemaSql = schemaSql.replace(/USE\s+[^;]+;/gi, '-- Skipped USE database for managed cloud target');
+    
     await connection.query(schemaSql);
     console.log('   ✅ Schema DDL applied successfully.');
 

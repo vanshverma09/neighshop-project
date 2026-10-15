@@ -334,25 +334,36 @@ export async function initDatabase(): Promise<{ dbType: DatabaseClientType }> {
 
       console.log(`[DB] Attempting MySQL connection (${databaseUrl ? 'via DATABASE_URL' : `${ENV.DB_HOST}:${ENV.DB_PORT}`}, SSL: ${useSsl})...`);
 
-      const pool = databaseUrl
-        ? mysql.createPool({
-            uri: databaseUrl,
-            ssl: useSsl ? { rejectUnauthorized: false } : undefined,
-            waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0,
-          })
-        : mysql.createPool({
-            host: ENV.DB_HOST,
-            port: ENV.DB_PORT,
-            user: ENV.DB_USER,
-            password: ENV.DB_PASSWORD,
-            database: ENV.DB_NAME,
-            ssl: useSsl ? { rejectUnauthorized: false } : undefined,
-            waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0,
-          });
+      let poolOptions: mysql.PoolOptions;
+
+      if (databaseUrl) {
+        const parsedUrl = new URL(databaseUrl);
+        poolOptions = {
+          host: parsedUrl.hostname,
+          port: parseInt(parsedUrl.port || '3306', 10),
+          user: decodeURIComponent(parsedUrl.username),
+          password: decodeURIComponent(parsedUrl.password),
+          database: parsedUrl.pathname.replace(/^\//, '') || 'defaultdb',
+          ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+          waitForConnections: true,
+          connectionLimit: 10,
+          queueLimit: 0,
+        };
+      } else {
+        poolOptions = {
+          host: ENV.DB_HOST,
+          port: ENV.DB_PORT,
+          user: ENV.DB_USER,
+          password: ENV.DB_PASSWORD,
+          database: ENV.DB_NAME,
+          ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+          waitForConnections: true,
+          connectionLimit: 10,
+          queueLimit: 0,
+        };
+      }
+
+      const pool = mysql.createPool(poolOptions);
 
       await pool.query('SELECT 1');
       mysqlPool = pool;
