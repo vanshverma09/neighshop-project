@@ -3,9 +3,25 @@ import { IAdvertisement, AdQueryParams } from './types/advertisement.types';
 import { ICategory } from './types/category.types';
 import { IReport, IAdminLog } from './types/report.types';
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+function resolveApiBase(): string {
+  // 1. Explicit Vite environment variable (if set in Vercel settings or .env)
+  if ((import.meta as any).env?.VITE_API_URL) {
+    return (import.meta as any).env.VITE_API_URL;
+  }
+  // 2. If running locally on laptop, use local backend
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:5000/api';
+    }
+  }
+  // 3. When deployed to Vercel or any remote domain, connect to live Render cloud API
+  return 'https://neighshop-api.onrender.com/api';
+}
 
+const API_BASE = resolveApiBase();
 
+// Admin Auth Tokens
 export function getAdminToken(): string | null {
   return localStorage.getItem('admin_token');
 }
@@ -25,6 +41,37 @@ export function getAdminUser(): IUser | null {
   return user ? JSON.parse(user) : null;
 }
 
+// Buyer Auth Storage
+export function getBuyerToken(): string | null {
+  return localStorage.getItem('buyer_token');
+}
+
+export function setBuyerAuth(token: string, user: IUser): void {
+  localStorage.setItem('buyer_token', token);
+  localStorage.setItem('buyer_user', JSON.stringify(user));
+}
+
+export function getBuyerUser(): IUser | null {
+  const user = localStorage.getItem('buyer_user');
+  return user ? JSON.parse(user) : null;
+}
+
+// Seller Auth Storage
+export function getSellerToken(): string | null {
+  return localStorage.getItem('seller_token');
+}
+
+export function setSellerAuth(token: string, user: IUser): void {
+  localStorage.setItem('seller_token', token);
+  localStorage.setItem('seller_user', JSON.stringify(user));
+}
+
+export function getSellerUser(): IUser | null {
+  const user = localStorage.getItem('seller_user');
+  return user ? JSON.parse(user) : null;
+}
+
+// Resilient API Fetch
 export async function apiRequest<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAdminToken();
   const headers: Record<string, string> = {
@@ -33,18 +80,62 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestInit
     ...((options.headers as Record<string, string>) || {})
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.message || `API request failed with status ${response.status}`);
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `API request failed with status ${response.status}`);
+    }
+    return data as T;
+  } catch (err: any) {
+    if (!API_BASE.startsWith('/')) {
+      try {
+        const fallbackRes = await fetch(`/api${endpoint}`, { ...options, headers });
+        const fallbackData = await fallbackRes.json().catch(() => ({}));
+        if (!fallbackRes.ok) throw new Error(fallbackData.message);
+        return fallbackData as T;
+      } catch {
+        // Fallback failed
+      }
+    }
+    throw new Error(err.message || 'Unable to connect to NeighShop API server.');
   }
+}
 
-  return data as T;
+export async function customRequest<T = any>(endpoint: string, options: RequestInit = {}, token?: string | null): Promise<T> {
+  const authToken = token !== undefined ? token : getAdminToken();
+  const headers: Record<string, string> = {
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+    ...((options.headers as Record<string, string>) || {})
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `API request failed with status ${response.status}`);
+    }
+    return data as T;
+  } catch (err: any) {
+    if (!API_BASE.startsWith('/')) {
+      try {
+        const fallbackRes = await fetch(`/api${endpoint}`, { ...options, headers });
+        const fallbackData = await fallbackRes.json().catch(() => ({}));
+        if (!fallbackRes.ok) throw new Error(fallbackData.message);
+        return fallbackData as T;
+      } catch {
+        // Fallback failed
+      }
+    }
+    throw new Error(err.message || 'Unable to connect to NeighShop API server.');
+  }
 }
 
 export interface AdminStatsResponse {
@@ -108,6 +199,10 @@ export const adminApi = {
     apiRequest<{ success: boolean; is_featured: boolean; message: string }>(`/admin/advertisements/${id}/featured`, {
       method: 'PATCH'
     }),
+  deleteAd: (id: number | string) =>
+    apiRequest<{ success: boolean; message: string }>(`/admin/advertisements/${id}`, {
+      method: 'DELETE'
+    }),
 
   // Users
   getUsers: (params: Record<string, any> = {}) => {
@@ -128,7 +223,7 @@ export const adminApi = {
 
   // Categories
   getCategories: () => apiRequest<{ success: boolean; categories: ICategory[] }>('/categories'),
-  createCategory: (data: { name: string; icon?: string; description?: string; display_order?: number }) =>
+  createCategory: (data: { name: string; icon?: string; description?: string; display_order?: number; slug?: string }) =>
     apiRequest<{ success: boolean; message: string; categoryId: number }>('/admin/categories', {
       method: 'POST',
       body: JSON.stringify(data)
@@ -159,4 +254,46 @@ export const adminApi = {
 
   // Logs
   getAuditLogs: () => apiRequest<{ success: boolean; logs: IAdminLog[] }>('/admin/audit-logs')
+};
+
+export const buyerApi = {
+  getAdvertisements: (params: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return customRequest<{ success: boolean; total: number; page: number; totalPages: number; advertisements: IAdvertisement[] }>(`/advertisements?${qs}`);
+  },
+  getFeaturedAds: () => customRequest<{ success: boolean; featured: IAdvertisement[] }>('/advertisements/featured'),
+  getAdvertisementById: (id: number | string, token?: string) => customRequest<{ success: boolean; advertisement: IAdvertisement }>(`/advertisements/${id}`, {}, token),
+  getCategories: () => customRequest<{ success: boolean; categories: ICategory[] }>('/categories'),
+  toggleFavourite: (adId: number | string, token: string) => customRequest<{ success: boolean; is_favourite?: boolean; is_favourited?: boolean; message: string }>(`/favourites/${adId}`, { method: 'POST' }, token),
+  getFavourites: (token: string) => customRequest<{ success: boolean; favourites: IAdvertisement[] }>('/favourites', {}, token),
+  createEnquiry: (data: { advertisement_id: number; message: string; proposed_price?: number }, token: string) =>
+    customRequest<{ success: boolean; message: string; enquiry: any }>('/enquiries', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }, token),
+  getMyEnquiries: (token: string) => customRequest<{ success: boolean; enquiries: any[] }>('/enquiries/my', {}, token),
+  submitReport: (data: { advertisement_id: number; reason: string; description?: string }, token: string) =>
+    customRequest<{ success: boolean; message: string }>('/reports', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }, token)
+};
+
+export const sellerApi = {
+  getMyAdvertisements: (status = 'all', token: string) =>
+    customRequest<{ success: boolean; advertisements: IAdvertisement[]; counts?: any }>(`/advertisements/my?status=${status}`, {}, token),
+  createAdvertisement: (data: any, token: string) =>
+    customRequest<{ success: boolean; message: string; advertisement: IAdvertisement }>('/advertisements', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }, token),
+  deleteAdvertisement: (id: number | string, token: string) =>
+    customRequest<{ success: boolean; message: string }>(`/advertisements/${id}`, { method: 'DELETE' }, token),
+  getSellerInquiries: (token: string) =>
+    customRequest<{ success: boolean; inquiries: any[] }>('/enquiries/seller', {}, token),
+  replyToInquiry: (inquiryId: number | string, response_message: string, token: string) =>
+    customRequest<{ success: boolean; message: string }>(`/enquiries/${inquiryId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({ response_message })
+    }, token)
 };
