@@ -1,4 +1,4 @@
-export type EnquiryStatus = 'pending' | 'replied' | 'closed';
+export type EnquiryStatus = 'pending' | 'responded' | 'replied' | 'closed';
 
 export interface IEnquiry {
   id: number;
@@ -6,6 +6,7 @@ export interface IEnquiry {
   buyer_id: number;
   seller_id: number;
   message: string;
+  reply?: string | null;
   phone?: string | null;
   status: EnquiryStatus;
   created_at: string;
@@ -14,6 +15,8 @@ export interface IEnquiry {
   // Joined fields
   buyer_name?: string;
   buyer_email?: string;
+  buyer_phone?: string;
+  buyer_avatar?: string;
   ad_title?: string;
   ad_price?: number;
   ad_image?: string;

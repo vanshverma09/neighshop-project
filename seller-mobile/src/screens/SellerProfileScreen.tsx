@@ -29,14 +29,14 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
     try {
       const res = await sellerApi.getProfile();
       setUser(res.user);
-      setBusinessName(res.user.business_name || 'Vansh Electronics & Gadgets');
-      setBusinessAddress(res.user.business_address || 'Shop #14, Linking Road, Bandra West, Mumbai');
+      setBusinessName(res.sellerProfile?.business_name || res.user.business_name || 'Vansh Electronics & Gadgets');
+      setBusinessAddress(res.sellerProfile?.address || res.user.business_address || 'Shop #14, Linking Road, Bandra West, Mumbai');
       setPhone(res.user.phone || '+91 98201 12345');
     } catch {
-      // fallback to mock seller
+      // fallback
       const fallbackUser: IUser = {
         id: 2,
-        name: 'Vansh Seller',
+        name: 'Vansh Verma (Seller)',
         email: 'seller@neighshop.com',
         phone: '+91 98201 12345',
         role: 'seller',
@@ -45,7 +45,7 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
         business_name: 'Vansh Electronics & Gadgets',
         business_address: 'Shop #14, Linking Road, Bandra West, Mumbai',
         seller_rating: 4.9,
-        total_sales: 14,
+        total_sales: 48,
         avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
         created_at: '2024-01-10T10:00:00Z',
       };
@@ -66,26 +66,34 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
     setSaving(true);
     try {
       await sellerApi.updateProfile({
-        business_name: businessName,
-        business_address: businessAddress,
-        phone: phone,
+        business_name: businessName.trim(),
+        business_address: businessAddress.trim(),
+        phone: phone.trim(),
       });
-      Alert.alert('Profile Updated', 'Your seller storefront details have been updated.');
+      Alert.alert('Storefront Updated! 🎉', 'Your business details and pickup location have been saved to MySQL.');
     } catch (err: any) {
-      Alert.alert('Notice', 'Store details saved locally.');
+      Alert.alert('Update Notice', err.message || 'Store details updated.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRelogin = async () => {
-    try {
-      await sellerApi.login('seller@neighshop.com', 'Seller@123');
-      Alert.alert('Session Active', 'Authenticated as seller@neighshop.com (Verified Seller)');
-      fetchProfile();
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Login failed');
-    }
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to end your current merchant session?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await sellerApi.logout();
+            navigation.navigate('SellerLogin');
+          }
+        }
+      ]
+    );
   };
 
   if (loading) {
@@ -100,8 +108,8 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Seller Storefront</Text>
-        <Text style={styles.headerSub}>Public profile visible to marketplace buyers</Text>
+        <Text style={styles.headerTitle}>Merchant Profile & Storefront</Text>
+        <Text style={styles.headerSub}>Manage public business identity, pickup location & account</Text>
       </View>
 
       {/* Store Card */}
@@ -119,7 +127,7 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
               </View>
             </View>
             <Text style={styles.ownerName}>Proprietor: {user?.name || 'Vansh'}</Text>
-            <Text style={styles.ratingText}>⭐ {user?.seller_rating || 4.9} rating • {user?.total_sales || 14} successful sales</Text>
+            <Text style={styles.ratingText}>⭐ {user?.seller_rating || 4.9} rating • {user?.total_sales || 48} successful deals</Text>
           </View>
         </View>
 
@@ -130,7 +138,7 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
           </View>
           <View style={styles.statCol}>
             <Text style={styles.statNum}>&lt; 15 min</Text>
-            <Text style={styles.statDesc}>Avg Response Time</Text>
+            <Text style={styles.statDesc}>Avg Reply Time</Text>
           </View>
           <View style={styles.statCol}>
             <Text style={styles.statNum}>Gold</Text>
@@ -143,15 +151,15 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
       <View style={styles.formCard}>
         <Text style={styles.formTitle}>Edit Storefront Information</Text>
 
-        <Text style={styles.fieldLabel}>Business / Store Display Name</Text>
+        <Text style={styles.fieldLabel}>Business / Store Display Name *</Text>
         <TextInput
           style={styles.input}
           value={businessName}
           onChangeText={setBusinessName}
-          placeholder="e.g. Vansh Electronics & Gadgets"
+          placeholder="e.g. Verma Electronics & Gadgets"
         />
 
-        <Text style={styles.fieldLabel}>Business Address / Pickup Location</Text>
+        <Text style={styles.fieldLabel}>Shop Address / Pickup Location *</Text>
         <TextInput
           style={styles.input}
           value={businessAddress}
@@ -168,7 +176,7 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
           keyboardType="phone-pad"
         />
 
-        <Text style={styles.fieldLabel}>Registered Email</Text>
+        <Text style={styles.fieldLabel}>Registered Merchant Email</Text>
         <TextInput
           style={[styles.input, styles.disabledInput]}
           value={user?.email || 'seller@neighshop.com'}
@@ -190,19 +198,32 @@ export default function SellerProfileScreen({ navigation }: SellerProfileScreenP
 
       {/* Account Info & Switcher */}
       <View style={styles.authCard}>
-        <Text style={styles.authTitle}>Marketplace Account Details</Text>
+        <Text style={styles.authTitle}>Session Details</Text>
         <Text style={styles.authEmail}>Authenticated: {user?.email} ({user?.role?.toUpperCase()})</Text>
-        <TouchableOpacity style={styles.authBtn} onPress={handleRelogin}>
-          <Text style={styles.authBtnText}>🔄 Verify & Reconnect Seller Session</Text>
-        </TouchableOpacity>
+
+        <View style={styles.sessionBtnRow}>
+          <TouchableOpacity
+            style={styles.authBtn}
+            onPress={() => navigation.navigate('SellerLogin')}
+          >
+            <Text style={styles.authBtnText}>🔄 Switch / Re-login</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={handleLogout}
+          >
+            <Text style={styles.logoutBtnText}>🚪 Sign Out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Safety & Compliance */}
       <View style={styles.complianceCard}>
-        <Text style={styles.complianceHeader}>🛡️ Seller Code of Conduct</Text>
+        <Text style={styles.complianceHeader}>🛡️ Seller Marketplace Standards</Text>
         <Text style={styles.complianceText}>• Post authentic photographs of the actual items you possess.</Text>
         <Text style={styles.complianceText}>• Honor the agreed price upon physical inspection.</Text>
-        <Text style={styles.complianceText}>• Prohibit counterfeit or illegally acquired merchandise.</Text>
+        <Text style={styles.complianceText}>• Strictly prohibit counterfeit or illegally acquired merchandise.</Text>
       </View>
     </ScrollView>
   );
@@ -387,18 +408,38 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 10,
   },
+  sessionBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   authBtn: {
+    flex: 1,
     backgroundColor: '#e6f7f6',
     borderWidth: 1,
     borderColor: '#00a49f',
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 6,
     alignItems: 'center',
+    marginRight: 8,
   },
   authBtnText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#00796b',
+  },
+  logoutBtn: {
+    flex: 1,
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    paddingVertical: 9,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  logoutBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#991b1b',
   },
   complianceCard: {
     backgroundColor: '#f9fafb',

@@ -7,7 +7,8 @@ import {
   updateAdvertisement,
   deleteAdvertisement,
   markAsSold,
-  getMyAdvertisements
+  getMyAdvertisements,
+  uploadImages
 } from '../controllers/adController';
 import { authenticateToken, optionalAuth } from '../middleware/auth';
 import { requireSeller } from '../middleware/rbac';
@@ -19,6 +20,7 @@ router.get('/', optionalAuth, getAdvertisements);
 router.get('/featured', getFeaturedAds);
 router.get('/my-ads', authenticateToken, requireSeller, getMyAdvertisements);
 router.get('/seller/me', authenticateToken, requireSeller, getMyAdvertisements);
+router.post('/upload', authenticateToken, requireSeller, upload.array('images', 8), uploadImages);
 router.get('/:id', optionalAuth, getAdvertisementById);
 router.post('/', authenticateToken, requireSeller, upload.array('images', 8), createAdvertisement);
 router.put('/:id', authenticateToken, requireSeller, updateAdvertisement);

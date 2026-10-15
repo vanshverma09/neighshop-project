@@ -11,6 +11,7 @@
     "test:m3": "tsx scripts/verify-milestone3.ts",
     "test:m4": "tsx scripts/verify-milestone4.ts",
     "test:m5": "tsx scripts/verify-milestone5.ts",
+    "test:m6": "tsx scripts/verify-milestone6.ts",
     "test:e2e": "tsx scripts/verify-e2e.ts",
     "test:db": "tsx scripts/verify-database.ts"
   },

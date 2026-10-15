@@ -27,6 +27,7 @@ router.get('/stats', getDashboardStats);
 // Advertisement moderation
 router.get('/advertisements', getAllAdvertisements);
 router.patch('/advertisements/:id/status', updateAdStatus);
+router.put('/advertisements/:id/status', updateAdStatus);
 router.patch('/advertisements/:id/featured', toggleFeatured);
 
 // Users moderation

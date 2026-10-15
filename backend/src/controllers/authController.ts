@@ -182,6 +182,8 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
     }
 
     const { name, phone, avatar_url, businessName, bio, address, city, state } = req.body;
+    const bName = businessName || req.body.business_name;
+    const bAddress = address || req.body.business_address;
     const userId = req.user.id;
 
     await query(
@@ -194,12 +196,12 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
       if (profile) {
         await query(
           'UPDATE seller_profiles SET business_name = COALESCE(?, business_name), bio = COALESCE(?, bio), address = COALESCE(?, address), city = COALESCE(?, city), state = COALESCE(?, state) WHERE user_id = ?',
-          [businessName, bio, address, city, state, userId]
+          [bName, bio, bAddress, city, state, userId]
         );
       } else {
         await query(
           'INSERT INTO seller_profiles (user_id, business_name, bio, address, city, state) VALUES (?, ?, ?, ?, ?, ?)',
-          [userId, businessName || `${name}'s Store`, bio, address, city, state]
+          [userId, bName || `${name}'s Store`, bio, bAddress, city, state]
         );
       }
     }

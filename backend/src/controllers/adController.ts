@@ -378,6 +378,12 @@ export async function updateAdvertisement(req: Request, res: Response): Promise<
       return;
     }
 
+    // Sellers cannot self-approve their own listings!
+    if (req.body.status === 'approved' && req.user.role !== 'admin') {
+      res.status(403).json({ success: false, message: 'Sellers cannot approve their own listings.' });
+      return;
+    }
+
     const {
       title,
       description,
@@ -388,8 +394,14 @@ export async function updateAdvertisement(req: Request, res: Response): Promise<
       location,
       city,
       state,
-      contact_phone
+      contact_phone,
+      status,
+      images,
+      imageUrls
     } = req.body;
+
+    // Allow status transition to 'pending' when seller resubmits an ad, or any status by admin
+    const newStatus = (status === 'pending' || req.user.role === 'admin') ? status : ad.status;
 
     await query(`
       UPDATE advertisements SET
@@ -402,7 +414,8 @@ export async function updateAdvertisement(req: Request, res: Response): Promise<
         location = COALESCE(?, location),
         city = COALESCE(?, city),
         state = COALESCE(?, state),
-        contact_phone = COALESCE(?, contact_phone)
+        contact_phone = COALESCE(?, contact_phone),
+        status = ?
       WHERE id = ?
     `, [
       title,
@@ -415,8 +428,25 @@ export async function updateAdvertisement(req: Request, res: Response): Promise<
       city,
       state,
       contact_phone,
+      newStatus,
       id
     ]);
+
+    // Handle image updates if provided
+    const rawImages = images || imageUrls;
+    if (rawImages) {
+      const urls = Array.isArray(rawImages) ? rawImages : [rawImages];
+      const validUrls = urls.filter(u => u && typeof u === 'string' && u.trim().startsWith('http'));
+      if (validUrls.length > 0) {
+        await query('DELETE FROM advertisement_images WHERE advertisement_id = ?', [id]);
+        for (let i = 0; i < validUrls.length; i++) {
+          await query(
+            'INSERT INTO advertisement_images (advertisement_id, image_url, is_primary, display_order) VALUES (?, ?, ?, ?)',
+            [id, validUrls[i].trim(), i === 0 ? 1 : 0, i + 1]
+          );
+        }
+      }
+    }
 
     res.json({
       success: true,
@@ -424,6 +454,34 @@ export async function updateAdvertisement(req: Request, res: Response): Promise<
     });
   } catch (err: any) {
     res.status(500).json({ success: false, message: 'Failed to update advertisement', error: err.message });
+  }
+}
+
+// 5b. UPLOAD ADVERTISEMENT IMAGES (Seller Only)
+export async function uploadImages(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      res.status(400).json({ success: false, message: 'No images provided for upload.' });
+      return;
+    }
+
+    const urls = (req.files as Express.Multer.File[]).map(file => {
+      return `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `${urls.length} image(s) uploaded successfully.`,
+      urls,
+      url: urls[0]
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: 'Upload failed', error: err.message });
   }
 }
 

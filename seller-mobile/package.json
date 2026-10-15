@@ -8,7 +8,8 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test:m6": "npm --prefix ../backend run test:m6"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^6.6.1",

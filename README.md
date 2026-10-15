@@ -779,7 +779,74 @@ npm run test:m5
 
 ---
 
-## 6. Directory Structure
+## 6. Milestone 6: NeighShop Global Seller Mobile Application
+
+The NeighShop Global Seller Mobile Application (`seller-mobile/`) is a dedicated merchant mobile application built with **React Native, TypeScript, and React Navigation**. Designed for classified marketplace merchants, it provides a high-efficiency dashboard, inventory manager with rejection reason feedback, multi-photo advertisement publisher, dynamic category/subcategory cascading, buyer lead management with real-time response capabilities, and secure storefront profile controls.
+
+```
+seller-mobile/src/
+├── api/
+│   └── apiClient.ts              # Typed Seller API client with session listeners & Bearer injection
+├── navigation/
+│   ├── SellerRootNavigator.tsx   # Native Stack: SellerMain, SellerLogin, SellerRegister, EditAd
+│   └── SellerTabNavigator.tsx    # Bottom Tabs (5 Tabs): Studio, My Ads, + SELL (elevated), Inquiries, Store
+├── screens/
+│   ├── SellerLoginScreen.tsx     # Merchant authentication with 1-click Demo Seller button
+│   ├── SellerRegisterScreen.tsx  # Storefront onboarding with business name, address & phone validation
+│   ├── SellerDashboardScreen.tsx # Real-time KPIs (Active, In Review, Rejected, Sold, Views) & Rejection Alert Banner
+│   ├── MyAdsScreen.tsx           # Inventory manager with status filters, rejection reasons & Mark as Sold
+│   ├── PostAdScreen.tsx          # Dual-mode Create/Edit form, backend categories, multi-image gallery & validation
+│   ├── InquiriesScreen.tsx       # Buyer lead management, dialer action & interactive reply modal
+│   └── SellerProfileScreen.tsx   # Public storefront editor, response rate stats & session management
+├── types/                        # Full TypeScript models for advertisements, categories, enquiries, and users
+├── App.tsx                       # SafeAreaProvider + NavigationContainer root
+└── tsconfig.json                 # Strict TypeScript compilation (0 errors)
+```
+
+### 6.1 Key Merchant Screens & Capabilities
+
+| # | Screen | Capabilities & Business Logic | Shared REST Endpoints |
+| :- | :--- | :--- | :--- |
+| **1** | **Merchant Authentication** (`SellerLoginScreen.tsx` & `SellerRegisterScreen.tsx`) | Merchant login with password validation, **1-click Demo Seller button** (`seller@neighshop.com` / `Seller@123`), and comprehensive storefront onboarding (proprietor name, store display name, pickup address, phone, email, password). | `POST /api/auth/login`<br>`POST /api/auth/register` |
+| **2** | **Seller Studio Dashboard** (`SellerDashboardScreen.tsx`) | Real-time KPI statistics grid (Active Ads, Under Review, Rejected, Items Sold, Total Views, Buyer Inquiries), prominent **Rejection Alert Banner** with one-tap navigation to review feedback, and quick action cards. | `GET /api/advertisements/my-ads`<br>`GET /api/enquiries/seller` |
+| **3** | **Inventory & My Ads** (`MyAdsScreen.tsx`) | Tabbed status filters (`All`, `Active`, `Pending`, `Rejected`, `Sold`), views counter, **Moderator Feedback Callout** on rejected listings displaying exact admin rejection reasons, **Edit & Resubmit** button, **Mark as Sold** (`PATCH /sold`), and permanent delete action. | `GET /api/advertisements/my-ads`<br>`PATCH /api/advertisements/:id/sold`<br>`DELETE /api/advertisements/:id` |
+| **4** | **Create / Edit Listing** (`PostAdScreen.tsx`) | Dual-mode listing publisher & editor with backend-driven category chips, dynamic subcategory selection, item condition chips, **Multi-Image Gallery (up to 8 photos)** with cover image badge and removal buttons, custom URL & preset photo picker, locality/city/state picker, and strict validation. | `GET /api/categories`<br>`POST /api/advertisements`<br>`PUT /api/advertisements/:id`<br>`POST /api/advertisements/upload` |
+| **5** | **Buyer Leads & Inquiries** (`InquiriesScreen.tsx`) | Inquiries list with status filters (`All`, `Pending`, `Replied`), product reference banner, buyer message, buyer phone dialer CTA, and **Interactive Reply Modal** with quick reply templates that sends custom responses to buyers. | `GET /api/enquiries/seller`<br>`PUT /api/enquiries/:id/reply` |
+| **6** | **Storefront Profile** (`SellerProfileScreen.tsx`) | Merchant identity editor (store name, pickup location address, contact phone), seller rating (⭐ 4.9), response rate (100%), verified merchant badge, Gold seller tier indicator, and safe sign-out workflow. | `GET /api/auth/profile`<br>`PUT /api/auth/profile`<br>`POST /api/auth/logout` |
+
+### 6.2 Security, Permissions & Real Storage Integration
+- **Strict Ownership Verification:** Every update, deletion, and enquiry response strictly confirms seller ownership on the backend. Sellers cannot edit or delete listings owned by other merchants (`HTTP 403`).
+- **Self-Approval Prevention:** The backend strictly forbids sellers from self-approving their own listings. Any attempt by a non-administrator to pass `status: 'approved'` returns `HTTP 403 Forbidden`.
+- **Rejection & Resubmission Feedback Loop:** When an admin rejects an ad with an explanatory reason, the seller receives the exact feedback in their app, edits the listing, and resubmits it with `status: 'pending'`, returning it to the admin moderation queue.
+- **Real Image Upload Integration:** The application connects to `POST /api/advertisements/upload` and multipart `POST /api/advertisements`, saving uploaded images to the server's persistent `/uploads/` filesystem and storing verified URLs in MySQL `advertisement_images`.
+
+### 6.3 Automated Milestone 6 Verification Suite
+A dedicated automated test script [backend/scripts/verify-milestone6.ts](file:///c:/Users/verma/OneDrive/Desktop/Project/backend/scripts/verify-milestone6.ts) validates the complete merchant workflow against the live backend API and database:
+```bash
+# Option A: From backend/ directory
+cd backend
+npm run test:m6
+
+# Option B: From seller-mobile/ directory
+cd seller-mobile
+npm run test:m6
+```
+
+**10 Verification Stages Executed by `test:m6`:**
+1. **Seller Registration, Login & Profile:** Registers unique merchant, verifies 401 on bad password, authenticates, retrieves profile without password leak, and updates store details in MySQL.
+2. **Security & Authorization Guards:** Strictly blocks cross-seller editing (`HTTP 403`), blocks cross-seller deletion (`HTTP 403`), and prevents seller from self-approving their own listing (`HTTP 403`).
+3. **Backend-Driven Categories & Subcategories:** Fetches all 7 categories and validates subcategory cascading.
+4. **Multiple Image Attachment & Validation:** Validates multi-image arrays and format checks.
+5. **Advertisement Creation:** Posts advertisement with all required fields and multi-image gallery; confirms `is_primary = 1` on cover photo in MySQL.
+6. **Seller Dashboard Statistics:** Verifies isolated KPI counts (`total`, `approved_count`, `pending_count`, `rejected_count`, `sold_count`).
+7. **Status Filtering:** Validates `?status=all`, `?status=pending`, `?status=approved`, `?status=rejected`, `?status=sold`.
+8. **Admin Rejection & Feedback Delivery:** Admin rejects ad with specific feedback; confirms seller receives exact feedback in rejected ads hub.
+9. **Seller Edit & Resubmission:** Seller updates price, description, images, and resubmits; confirms status reset to `pending` in MySQL.
+10. **Approval, Public Feed, Buyer Enquiry, Seller Reply & Sold Lifecycle:** Admin approves listing, public feed verifies discovery, buyer sends enquiry, seller receives lead in inquiries hub, seller replies with message, buyer receives response in chat thread, seller marks item as sold (`PATCH /sold`), and permanently deletes listing from database.
+
+---
+
+## 7. Directory Structure
 
 ```text
 Project/
@@ -812,6 +879,7 @@ Project/
 │   │   ├── verify-milestone3.ts          # Milestone 3: 11-module REST API verification suite
 │   │   ├── verify-milestone4.ts          # Milestone 4: Admin Web application verification suite
 │   │   ├── verify-milestone5.ts          # Milestone 5: User Mobile application verification suite
+│   │   ├── verify-milestone6.ts          # Milestone 6: Seller Mobile application verification suite
 │   │   └── verify-e2e.ts                 # Full multi-role 8-stage automated workflow verification
 │   ├── package.json
 │   └── tsconfig.json
@@ -841,14 +909,16 @@ Project/
 │
 ├── seller-mobile/                        # Seller Mobile Application (React Native + TS + React Navigation)
 │   ├── src/
-│   │   ├── api/apiClient.ts              # Typed Seller API Client
+│   │   ├── api/apiClient.ts              # Typed Seller API Client with session listeners
 │   │   ├── navigation/                   # SellerTabNavigator (5 Tabs + Center SELL) & SellerRootNavigator
 │   │   ├── screens/
-│   │   │   ├── SellerDashboardScreen.tsx # Seller Studio KPIs (Active, Under Review, Rejected, Sales)
+│   │   │   ├── SellerLoginScreen.tsx     # Merchant authentication with 1-click demo button
+│   │   │   ├── SellerRegisterScreen.tsx  # Storefront onboarding with full validation
+│   │   │   ├── SellerDashboardScreen.tsx # Seller Studio KPIs & Rejection Feedback Banner
 │   │   │   ├── MyAdsScreen.tsx           # Inventory manager with status tabs and Rejection Reason Banner
-│   │   │   ├── PostAdScreen.tsx          # + SELL ad posting form with category picker and photo preview
-│   │   │   ├── InquiriesScreen.tsx       # Buyer inquiry leads, phone dialer CTA, mark replied
-│   │   │   └── SellerProfileScreen.tsx   # Storefront profile, owner details, address editor
+│   │   │   ├── PostAdScreen.tsx          # Dual Create/Edit form with multi-image gallery & category cascading
+│   │   │   ├── InquiriesScreen.tsx       # Buyer leads, phone dialer & interactive reply composer
+│   │   │   └── SellerProfileScreen.tsx   # Storefront profile, owner details, address editor, sign out
 │   │   └── types/                        # Mirrored shared TypeScript models
 │   ├── App.tsx                           # SafeAreaProvider + NavigationContainer
 │   ├── index.js
@@ -881,7 +951,7 @@ Project/
 
 ---
 
-## 7. Safe Demonstration Credentials
+## 8. Safe Demonstration Credentials
 
 The database comes pre-seeded with verified test accounts across all three roles:
 
@@ -893,7 +963,7 @@ The database comes pre-seeded with verified test accounts across all three roles
 
 ---
 
-## 8. Quick-Start Guide (Running Locally)
+## 9. Quick-Start Guide (Running Locally)
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or higher (v26.x supported)
@@ -911,6 +981,7 @@ npm run test:db   # Executes Milestone 2 database schema verification suite
 npm run test:m3   # Executes Milestone 3 11-module REST API verification suite
 npm run test:m4   # Executes Milestone 4 Admin Web application verification suite
 npm run test:m5   # Executes Milestone 5 User Mobile application verification suite
+npm run test:m6   # Executes Milestone 6 Seller Mobile application verification suite
 npm run test:e2e  # Executes automated multi-role E2E workflow test
 npm start         # Starts backend on http://localhost:5000
 ```
@@ -958,17 +1029,18 @@ npm start         # Starts Metro bundler
 cd seller-mobile
 npm install --legacy-peer-deps
 npm run typecheck # Strict TypeScript compilation (0 errors)
+npm run test:m6   # Executes Milestone 6 automated verification suite
 npm start         # Starts Metro bundler
 ```
 
 ---
 
-## 9. Technical Evaluation Matrix
+## 10. Technical Evaluation Matrix
 
 | Requirement | Implementation Details | Status |
 | :--- | :--- | :---: |
 | **User Mobile App** | React Native, TypeScript, React Navigation (Tabs: Home, Categories, Explore, Wishlist, Chats, Profile + ProductDetail Stack). OLX 2-column feed, location selector, multi-filter search, category browsing, image gallery, enquiry modal, safety reporting. | ✅ Verified (`test:m5` + 0 TS errors) |
-| **Seller Mobile App** | React Native, TypeScript, React Navigation (Tabs: Studio, My Ads, + SELL, Inquiries, Storefront). Rejection reason feedback banner, status filters, buyer leads. | ✅ Verified (0 TS errors) |
+| **Seller Mobile App** | React Native, TypeScript, React Navigation (Tabs: Studio, My Ads, + SELL, Inquiries, Storefront + Stack: Login, Register, EditAd). Studio KPIs, inventory manager, rejection feedback callouts, multi-image gallery, dynamic category cascading, interactive reply composer, Mark as Sold, Delete. | ✅ Verified (`test:m6` + 0 TS errors) |
 | **Admin Web App** | React.js, TypeScript, Vite. Executive KPIs, Pending Approvals queue with Approve/Reject modal, User moderation, Category CRUD, Reports Center, Audit Trail. | ✅ Verified (`test:m4` + 0 TS errors) |
 | **Shared Backend API** | Node.js, Express.js, TypeScript. JWT authentication, Role-Based Access Control (`buyer`, `seller`, `admin`), Multer file uploads, parameterized SQL. 11 functional modules tested. | ✅ Verified (`test:m3`) |
 | **Database Architecture** | MySQL 8.0+ normalized schema (`schema.sql` and `seed.sql`). Seamless automatic zero-config fallback to SQLite for immediate testing. | ✅ Verified (`test:db`) |
@@ -977,7 +1049,7 @@ npm start         # Starts Metro bundler
 
 ---
 
-## 10. Explanatory Video Recording Guide (Section 12.2)
+## 11. Explanatory Video Recording Guide (Section 12.2)
 
 When recording the explanatory video, cover the following 12 key points:
 
@@ -992,7 +1064,7 @@ When recording the explanatory video, cover the following 12 key points:
 9. **Buyer Inquiries**: Submit an enquiry from the Buyer view and respond to it from the Seller view.
 10. **Wishlist & Reporting**: Add an item to favorites and submit a safety report. Show the report appear in the Admin Panel's `Reports` center.
 11. **Backend Security & RBAC**: Point out the JWT authentication middleware (`src/middleware/auth.ts`) and role-based guards (`src/middleware/rbac.ts`).
-12. **Automated Verification**: Run `npm run test:db`, `npm run test:m3`, `npm run test:m4`, `npm run test:m5`, and `npm run test:e2e` in `backend/` to showcase all automated verification suites passing with 0 errors.
+12. **Automated Verification**: Run `npm run test:db`, `npm run test:m3`, `npm run test:m4`, `npm run test:m5`, `npm run test:m6`, and `npm run test:e2e` in `backend/` to showcase all automated verification suites passing with 0 errors.
 
 ---
 

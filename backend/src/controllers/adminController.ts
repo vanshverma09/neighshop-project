@@ -214,7 +214,8 @@ export async function updateAdStatus(req: Request, res: Response): Promise<void>
     }
 
     const { id } = req.params;
-    const { status, rejection_reason } = req.body;
+    const { status } = req.body;
+    const rejection_reason = req.body.rejection_reason || req.body.rejectionReason;
 
     if (!['approved', 'rejected', 'pending', 'sold'].includes(status)) {
       res.status(400).json({ success: false, message: 'Invalid status. Must be approved, rejected, pending, or sold.' });
