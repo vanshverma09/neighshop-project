@@ -538,7 +538,91 @@ npm run test:db
 
 ---
 
-## 3. Directory Structure
+## 3. Milestone 3: Shared REST API Architecture & Implementation
+
+The shared REST API is built with **Node.js, Express.js, TypeScript**, and backed by the normalized MySQL schema (with automatic zero-config fallback to SQLite). It enforces strict backend validation, parameterized queries, bcrypt password hashing, robust role-based access control (RBAC), and deterministic HTTP status codes across 11 functional modules.
+
+### 3.1 Modular API Architecture
+```
+backend/src/
+├── config/env.ts              # Environment configuration & validation
+├── controllers/               # Business logic, authorization & database execution
+│   ├── authController.ts      # Registration, login, logout, profile & role switching
+│   ├── categoryController.ts  # Taxonomy navigation & live approved ad counters
+│   ├── adController.ts        # Ad CRUD, image ingestion & ownership verification
+│   ├── wishlistController.ts  # Favourites bookmarking & status checks
+│   ├── enquiryController.ts   # Buyer inquiries & seller response management
+│   ├── adminController.ts     # Moderation queue, user management, stats & logs
+│   ├── reportController.ts    # Safety complaints & violating ad takedowns
+│   └── userController.ts      # Public seller storefront profiles & active listings
+├── middleware/                # Security & request pipelines
+│   ├── auth.ts                # Bearer JWT verification & active user hydration
+│   ├── rbac.ts                # Role barriers (requireBuyer, requireSeller, requireAdmin)
+│   ├── upload.ts              # Multer multi-photo upload handler
+│   └── errorHandler.ts        # Centralized 404 & 500 error sanitization
+├── routes/                    # RESTful route definitions mounted on /api
+│   ├── auth.routes.ts         # /api/auth
+│   ├── category.routes.ts     # /api/categories
+│   ├── ad.routes.ts           # /api/advertisements
+│   ├── wishlist.routes.ts     # /api/wishlist
+│   ├── enquiry.routes.ts      # /api/enquiries
+│   ├── report.routes.ts       # /api/reports
+│   ├── admin.routes.ts        # /api/admin
+│   └── user.routes.ts         # /api/users
+├── database/db.ts             # Dual-engine connection pool (MySQL + SQLite)
+└── server.ts                  # Server entrypoint with diagnostic health check (Port 5000)
+```
+
+### 3.2 Implemented Functional Modules (In Sequential Order)
+
+| # | Module | Key Endpoints | Security & Business Logic Enforced |
+| :- | :--- | :--- | :--- |
+| **1** | **Authentication & Profiles** | `POST /api/auth/register`<br>`POST /api/auth/login`<br>`POST /api/auth/logout`<br>`GET /api/auth/profile`<br>`PUT /api/auth/profile` | Bcrypt password hashing (10 salt rounds). Validates duplicate emails (`409 Conflict`). Suspended accounts blocked at login (`403 Forbidden`). |
+| **2** | **Categories & Subcategories** | `GET /api/categories`<br>`GET /api/categories/:slug` | Returns all 7 categories and 24 subcategories. Computes live counts of approved listings per category. |
+| **3** | **Advertisement CRUD & Ownership** | `POST /api/advertisements`<br>`GET /api/advertisements/:id`<br>`PUT /api/advertisements/:id`<br>`DELETE /api/advertisements/:id` | Initial ad creation sets status to `'pending'`. **Strict listing ownership enforcement:** Sellers cannot edit or delete listings belonging to other sellers (`403 Forbidden`). Attached images stored in `advertisement_images`. |
+| **4** | **Search, Filtering & Pagination** | `GET /api/advertisements` | **Strict Public Isolation:** Excludes `pending`, `rejected`, `sold`, and `inactive` ads. Supports keyword search (`search`), category filter (`categoryId`), city filter (`city`), price range (`minPrice`, `maxPrice`), sorting (`price_asc`, `newest`), and pagination (`page`, `limit`). |
+| **5** | **Favourites & Buyer Enquiries** | `GET /api/wishlist`<br>`POST /api/wishlist/:id`<br>`POST /api/enquiries`<br>`GET /api/enquiries/buyer` | Toggle save/bookmark. Buyers can submit enquiries on listings. **Self-enquiry barrier:** Sellers cannot submit an enquiry on their own advertisement (`400 Bad Request`). |
+| **6** | **Seller Dashboard & Inquiries** | `GET /api/advertisements/my-ads`<br>`GET /api/enquiries/seller`<br>`PUT /api/enquiries/:id/reply`<br>`PATCH /api/advertisements/:id/sold` | Returns seller's own listings with summary counters (`total`, `approved`, `pending`, `rejected`, `sold`). Inquiries hub with reply action. Ownership guard on `markAsSold` (`403 Forbidden` for unauthorized sellers). |
+| **7** | **Admin User Management** | `GET /api/admin/users`<br>`PATCH /api/admin/users/:id/status` | Non-admin accounts blocked (`403 Forbidden`). Admin can inspect user registry, suspend fraudulent accounts, and reactivate users. Suspended users immediately blocked from authentication. |
+| **8** | **Advertisement Approval Workflow** | `GET /api/admin/advertisements`<br>`PATCH /api/admin/advertisements/:id/status` | Non-admin accounts blocked (`403 Forbidden`). Rejection requires a non-empty `rejection_reason` (`400 Bad Request` if omitted). Stored feedback is delivered directly to the seller's My Ads hub. Approval immediately publishes listing to public marketplace feed. |
+| **9** | **Reports & Complaints** | `POST /api/reports`<br>`GET /api/admin/reports`<br>`PATCH /api/admin/reports/:id` | Authenticated users report policy violations (`counterfeit`, `spam`, `fraud`). Admin reviews queue, resolves reports with notes, and can trigger automated listing takedowns. |
+| **10** | **Featured Ads & Admin Stats** | `GET /api/advertisements/featured`<br>`PATCH /api/admin/advertisements/:id/featured`<br>`GET /api/admin/stats` | Admin can toggle featured promotional banner. Public featured carousel. Admin overview returns real-time KPI metrics (users, listings by status, complaints, category breakdown). |
+| **11** | **Administrative Activity Logs** | `GET /api/admin/audit-logs` | Immutable audit trail capturing every moderator action (`approve_ad`, `reject_ad`, `feature_ad`, `suspend_user`, `activate_user`, `resolve_report`) with admin ID, timestamp, and IP address. |
+
+### 3.3 Security & Authorization Safeguards
+- **Role-Based Access Control (RBAC):** Middleware checks verify user tokens before protected routes execute.
+  - `requireAdmin`: Enforces administrative rights (`admin`).
+  - `requireSeller`: Allows sellers and administrators (`seller`, `admin`).
+  - `requireBuyer`: Allows buyers, sellers, and administrators.
+- **Listing Ownership Guard:** `ad.seller_id === req.user.id || req.user.role === 'admin'`. Unauthorized sellers receive `HTTP 403 Forbidden`.
+- **Public Feed Isolation:** Public advertisement queries strictly append `a.status = 'approved'`, guaranteeing that unapproved listings (`pending`, `rejected`, `sold`, `inactive`) never leak to the public.
+- **SQL Injection Prevention:** 100% of queries use parameterized prepared statements (`?` placeholders).
+
+### 3.4 Diagnostic Health Check & API Documentation
+- **Health Check Endpoint:** `GET http://localhost:5000/api/health`
+  ```json
+  {
+    "status": "online",
+    "service": "NeighShop Classified Marketplace Shared API",
+    "candidate": "Vansh",
+    "database": "SQLITE",
+    "version": "1.0.0",
+    "uptime": 277,
+    "timestamp": "2026-10-15T12:00:00.000Z"
+  }
+  ```
+- **Full API Specification:** Complete endpoint reference is documented in [backend/docs/API_DOCUMENTATION.md](file:///c:/Users/verma/OneDrive/Desktop/Project/backend/docs/API_DOCUMENTATION.md).
+
+### 3.5 Automated Milestone 3 Verification Suite
+Run the automated test suite testing all 11 modules in strict sequential order:
+```bash
+cd backend
+npm run test:m3
+```
+
+---
+
+## 4. Directory Structure
 
 ```text
 Project/
@@ -631,7 +715,7 @@ Project/
 
 ---
 
-## 4. Safe Demonstration Credentials
+## 5. Safe Demonstration Credentials
 
 The database comes pre-seeded with verified test accounts across all three roles:
 
@@ -643,7 +727,7 @@ The database comes pre-seeded with verified test accounts across all three roles
 
 ---
 
-## 5. Quick-Start Guide (Running Locally)
+## 6. Quick-Start Guide (Running Locally)
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or higher (v26.x supported)
@@ -658,6 +742,7 @@ cd backend
 npm install
 npm run build     # Compiles TypeScript (0 errors)
 npm run test:db   # Executes Milestone 2 database schema verification suite
+npm run test:m3   # Executes Milestone 3 11-module REST API verification suite
 npm run test:e2e  # Executes automated multi-role E2E workflow test
 npm start         # Starts backend on http://localhost:5000
 ```
@@ -708,21 +793,21 @@ npm start         # Starts Metro bundler
 
 ---
 
-## 6. Technical Evaluation Matrix
+## 7. Technical Evaluation Matrix
 
 | Requirement | Implementation Details | Status |
 | :--- | :--- | :---: |
 | **User Mobile App** | React Native, TypeScript, React Navigation (Tabs: Home, Explore, Wishlist, Chats, Account + ProductDetail Stack). OLX 2-column feed, location selector, category chips. | ✅ Verified (0 TS errors) |
 | **Seller Mobile App** | React Native, TypeScript, React Navigation (Tabs: Studio, My Ads, + SELL, Inquiries, Storefront). Rejection reason feedback banner, status filters, buyer leads. | ✅ Verified (0 TS errors) |
 | **Admin Web App** | React.js, TypeScript, Vite. Executive KPIs, Pending Approvals queue with Approve/Reject modal, User moderation, Category CRUD, Reports Center, Audit Trail. | ✅ Verified (0 TS errors) |
-| **Shared Backend API** | Node.js, Express.js, TypeScript. JWT authentication, Role-Based Access Control (`buyer`, `seller`, `admin`), Multer file uploads, parameterized SQL. | ✅ Verified (0 TS errors) |
+| **Shared Backend API** | Node.js, Express.js, TypeScript. JWT authentication, Role-Based Access Control (`buyer`, `seller`, `admin`), Multer file uploads, parameterized SQL. 11 functional modules tested. | ✅ Verified (`test:m3`) |
 | **Database Architecture** | MySQL 8.0+ normalized schema (`schema.sql` and `seed.sql`). Seamless automatic zero-config fallback to SQLite for immediate testing. | ✅ Verified (`test:db`) |
 | **End-to-End Moderation** | Full feedback loop from ad submission -> admin review -> rejection reason display to seller -> resubmission -> approval -> public discovery. | ✅ Verified (`test:e2e`) |
 | **Git & Clean Repository** | Clean multi-project repository structure, thorough documentation, test credentials, and runnable development servers. | ✅ Verified |
 
 ---
 
-## 7. Explanatory Video Recording Guide (Section 12.2)
+## 8. Explanatory Video Recording Guide (Section 12.2)
 
 When recording the explanatory video, cover the following 12 key points:
 
@@ -737,8 +822,9 @@ When recording the explanatory video, cover the following 12 key points:
 9. **Buyer Inquiries**: Submit an enquiry from the Buyer view and respond to it from the Seller view.
 10. **Wishlist & Reporting**: Add an item to favorites and submit a safety report. Show the report appear in the Admin Panel's `Reports` center.
 11. **Backend Security & RBAC**: Point out the JWT authentication middleware (`src/middleware/auth.ts`) and role-based guards (`src/middleware/rbac.ts`).
-12. **Automated Verification**: Run `npm run test:db` and `npm run test:e2e` in `backend/` to showcase both automated verification suites passing with 0 errors.
+12. **Automated Verification**: Run `npm run test:db`, `npm run test:m3`, and `npm run test:e2e` in `backend/` to showcase all automated verification suites passing with 0 errors.
 
 ---
 
 **Developed with care for NeighShop Global by Candidate Vansh.**
+

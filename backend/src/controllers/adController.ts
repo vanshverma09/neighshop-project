@@ -266,7 +266,8 @@ export async function createAdvertisement(req: Request, res: Response): Promise<
       state = 'Maharashtra',
       contact_phone,
       contact_email,
-      imageUrls
+      imageUrls,
+      images
     } = req.body;
 
     if (!title || !description || !price || !category_id) {
@@ -314,8 +315,9 @@ export async function createAdvertisement(req: Request, res: Response): Promise<
     }
 
     // 2. Additional URLs passed as array or comma-separated string
-    if (imageUrls) {
-      const urls = Array.isArray(imageUrls) ? imageUrls : [imageUrls];
+    const rawImages = images || imageUrls;
+    if (rawImages) {
+      const urls = Array.isArray(rawImages) ? rawImages : [rawImages];
       urls.forEach((url, idx) => {
         if (url && typeof url === 'string' && url.trim().startsWith('http')) {
           imagesToInsert.push({
@@ -325,6 +327,7 @@ export async function createAdvertisement(req: Request, res: Response): Promise<
         }
       });
     }
+
 
     // If no images provided, use clean fallback
     if (imagesToInsert.length === 0) {

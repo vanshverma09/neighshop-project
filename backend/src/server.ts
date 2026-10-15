@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { ENV } from './config/env';
-import { initDatabase } from './database/db';
+import { initDatabase, getDbType } from './database/db';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -37,9 +37,13 @@ app.get('/api/health', (_req, res) => {
     status: 'online',
     service: 'NeighShop Classified Marketplace Shared API',
     candidate: 'Vansh',
+    database: getDbType().toUpperCase(),
+    version: '1.0.0',
+    uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString()
   });
 });
+
 
 // API Routes
 app.use('/api/auth', authRoutes);

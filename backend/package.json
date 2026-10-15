@@ -8,6 +8,7 @@
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "prod": "node dist/server.js",
+    "test:m3": "tsx scripts/verify-milestone3.ts",
     "test:e2e": "tsx scripts/verify-e2e.ts",
     "test:db": "tsx scripts/verify-database.ts"
   },

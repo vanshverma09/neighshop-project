@@ -259,3 +259,15 @@ export async function switchRole(req: Request, res: Response): Promise<void> {
     res.status(500).json({ success: false, message: 'Role switch failed', error: err.message });
   }
 }
+
+export async function logout(req: Request, res: Response): Promise<void> {
+  try {
+    res.json({
+      success: true,
+      message: 'Logged out successfully.'
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: 'Logout failed', error: err.message });
+  }
+}
+
