@@ -12,9 +12,12 @@ export function notFoundHandler(req: Request, res: Response): void {
   });
 }
 
-export function errorHandler(err: AppError, _req: Request, res: Response, _next: NextFunction): void {
-  console.error('Unhandled Server Error:', err);
-  const status = err.status || 500;
+export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction): void {
+  console.error('Unhandled Server Error:', err.message || err);
+  let status = err.status || 500;
+  if (err.name === 'MulterError' || (err.message && err.message.includes('Only image files'))) {
+    status = 400;
+  }
   res.status(status).json({
     success: false,
     message: err.message || 'Internal Server Error',

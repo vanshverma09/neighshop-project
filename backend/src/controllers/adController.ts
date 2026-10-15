@@ -28,7 +28,8 @@ export async function getAdvertisements(req: Request, res: Response): Promise<vo
 
     if (search && typeof search === 'string' && search.trim() !== '') {
       conditions.push('(LOWER(a.title) LIKE ? OR LOWER(a.description) LIKE ?)');
-      const term = `%${search.toLowerCase().trim()}%`;
+      const normalizedSearch = search.replace(/\+/g, ' ').toLowerCase().trim();
+      const term = `%${normalizedSearch}%`;
       params.push(term, term);
     }
 
@@ -275,6 +276,26 @@ export async function createAdvertisement(req: Request, res: Response): Promise<
       return;
     }
 
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      res.status(400).json({ success: false, message: 'Price must be a valid positive number greater than 0.' });
+      return;
+    }
+
+    const category = await getOne<{ id: number }>('SELECT id FROM categories WHERE id = ?', [category_id]);
+    if (!category) {
+      res.status(400).json({ success: false, message: 'Specified category does not exist.' });
+      return;
+    }
+
+    if (subcategory_id) {
+      const subcategory = await getOne<{ id: number }>('SELECT id FROM subcategories WHERE id = ?', [subcategory_id]);
+      if (!subcategory) {
+        res.status(400).json({ success: false, message: 'Specified subcategory does not exist.' });
+        return;
+      }
+    }
+
     const sellerId = req.user.id;
     const phone = contact_phone || req.user.phone || '';
     const email = contact_email || req.user.email || '';
@@ -399,6 +420,22 @@ export async function updateAdvertisement(req: Request, res: Response): Promise<
       images,
       imageUrls
     } = req.body;
+
+    if (price !== undefined && price !== null) {
+      const parsedPrice = parseFloat(price);
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        res.status(400).json({ success: false, message: 'Price must be a valid positive number greater than 0.' });
+        return;
+      }
+    }
+
+    if (category_id) {
+      const category = await getOne<{ id: number }>('SELECT id FROM categories WHERE id = ?', [category_id]);
+      if (!category) {
+        res.status(400).json({ success: false, message: 'Specified category does not exist.' });
+        return;
+      }
+    }
 
     // Allow status transition to 'pending' when seller resubmits an ad, or any status by admin
     const newStatus = (status === 'pending' || req.user.role === 'admin') ? status : ad.status;

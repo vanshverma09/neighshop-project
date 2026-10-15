@@ -14,6 +14,17 @@ export async function register(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      res.status(400).json({ success: false, message: 'Invalid email address format.' });
+      return;
+    }
+
+    if (password.length < 6) {
+      res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
+      return;
+    }
+
     const validRoles = ['buyer', 'seller'];
     const userRole = validRoles.includes(role) ? role : 'buyer';
 

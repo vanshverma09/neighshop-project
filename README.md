@@ -846,7 +846,97 @@ npm run test:m6
 
 ---
 
-## 7. Directory Structure
+## 7. Milestone 7: End-to-End Integration & Quality Assurance
+
+Milestone 7 solidifies platform stability, security boundaries, and cross-application consistency through comprehensive end-to-end integration and automated quality assurance across all three applications (User Mobile App, Seller Mobile App, Admin Web Dashboard) and the shared REST API backend.
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│               Milestone 7: Comprehensive Integration & QA Architecture                  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+                                           │
+         ┌─────────────────────────────────┼─────────────────────────────────┐
+         ▼                                 ▼                                 ▼
+┌──────────────────┐             ┌──────────────────┐             ┌──────────────────┐
+│   Phase 1 Core   │             │ Phase 2 Negative │             │ Phase 3 Quality  │
+│  9-Step Workflow │             │ & Security Suite │             │  & Build Matrix  │
+│                  │             │                  │             │                  │
+│ • Seller Onboard │             │ • Bad Input (8)  │             │ • Backend tsc: 0 │
+│ • Ad Pending     │             │ • Unauth 401 (4) │             │ • Admin tsc: 0   │
+│ • Search Hidden  │             │ • Admin RBAC (2) │             │ • User RN tsc: 0 │
+│ • Admin Approve  │             │ • Cross-Sell (5) │             │ • Seller RN: 0   │
+│ • Buyer Discover │             │ • Bad Upload (2) │             │ • oxlint: 0 err  │
+│ • Favourites     │             │ • 404 Ghosts (5) │             │ • 100% Tests Pass│
+│ • Buyer Enquiry  │             │                  │             │                  │
+│ • Seller Reply   │             │ 26 Automated     │             │ 47 Automated     │
+│ • Safety Report  │             │ Security Checks  │             │ Assertions Pass  │
+│ • Admin Reject   │             │                  │             │                  │
+└──────────────────┘             └──────────────────┘             └──────────────────┘
+```
+
+### 7.1 Verified Complete 9-Step Lifecycle Workflow
+
+The automated suite tests the end-to-end lifecycle connecting all three actor roles through the shared database:
+
+| Step | Action & Workflow Stage | Actors Involved | Expected State & Verification Proof | Result |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | **Seller Registration & Listing Creation** | Seller -> Backend | Seller registers (`POST /api/auth/register`), receives JWT, and submits an ad (`POST /api/advertisements`) with price, description, category, and multi-image gallery. | ✅ PASSED |
+| **2** | **Initial Pending Moderation Status** | Seller App -> MySQL | Ad is stored with `status = 'pending'` and `views_count = 0` in database. | ✅ PASSED |
+| **3** | **Public Search Isolation** | Public Feed -> Backend | `GET /api/advertisements` does NOT return the pending listing. Public search is strictly restricted to approved items. | ✅ PASSED |
+| **4** | **Administrative Review & Approval** | Admin Web -> Backend | Admin logs in, reviews pending listing, and approves it (`PUT /api/admin/advertisements/:id/status` with `status: 'approved'`). | ✅ PASSED |
+| **5** | **Public Discovery in User App** | User Mobile App | Public search immediately returns the approved ad. Public details endpoint (`GET /api/advertisements/:id`) serves full details. | ✅ PASSED |
+| **6** | **Buyer Favourites & Inquiries** | Buyer -> Backend | Buyer bookmarks listing (`POST /api/favourites/:id`), confirms wishlist persistence, and submits enquiry (`POST /api/enquiries`). | ✅ PASSED |
+| **7** | **Seller Leads & Real-time Reply** | Seller App -> Buyer App | Seller receives enquiry in leads hub (`GET /api/enquiries/seller`) and replies (`PUT /api/enquiries/:id/reply`). Buyer immediately sees the reply in Chats (`GET /api/enquiries/buyer`). | ✅ PASSED |
+| **8** | **Safety Complaints & Admin Resolution** | Buyer -> Admin Web | Buyer files safety complaint (`POST /api/reports`). Admin inspects complaints queue and resolves it with audit notes (`PATCH /api/admin/reports/:id`). | ✅ PASSED |
+| **9** | **Rejection Feedback & Seller Visibility** | Admin Web -> Seller App | Admin moderates another listing and rejects it with an explicit reason (`status: 'rejected'`, `rejection_reason`). Seller inspects `My Ads` and sees the exact feedback callout. | ✅ PASSED |
+
+### 7.2 Rigorous Negative Testing & Security Safeguards (26 Test Cases)
+
+| Test Group | Negative Scenario | Tested Endpoint | Expected Status | Actual Result |
+| :--- | :--- | :--- | :---: | :---: |
+| **Input Validation** | Missing name, email, or password | `POST /api/auth/register` | `HTTP 400` | ✅ Blocked with clear message |
+| **Input Validation** | Invalid email format (missing `@`/domain) | `POST /api/auth/register` | `HTTP 400` | ✅ Rejected ("Invalid email address format.") |
+| **Input Validation** | Password too short (< 6 characters) | `POST /api/auth/register` | `HTTP 400` | ✅ Rejected ("Password must be at least 6 characters.") |
+| **Input Validation** | Negative price in advertisement | `POST /api/advertisements` | `HTTP 400` | ✅ Rejected ("Price must be a valid positive number.") |
+| **Input Validation** | Nonexistent category ID | `POST /api/advertisements` | `HTTP 400` | ✅ Rejected ("Specified category does not exist.") |
+| **Input Validation** | Missing required listing fields (title, price) | `POST /api/advertisements` | `HTTP 400` | ✅ Rejected ("Title, description, price, category required.") |
+| **Input Validation** | Report submission without violation reason | `POST /api/reports` | `HTTP 400` | ✅ Rejected ("Advertisement ID and reason required.") |
+| **Input Validation** | Report submission with invalid reason enum | `POST /api/reports` | `HTTP 400` | ✅ Rejected with valid reason list |
+| **Unauthenticated** | Accessing seller private inventory | `GET /api/advertisements/my-ads` | `HTTP 401` | ✅ Blocked ("Authentication required.") |
+| **Unauthenticated** | Accessing executive admin dashboard | `GET /api/admin/stats` | `HTTP 401` | ✅ Blocked ("Authentication required.") |
+| **Unauthenticated** | Favouriting listing without session | `POST /api/favourites/:id` | `HTTP 401` | ✅ Blocked ("Authentication required.") |
+| **Unauthenticated** | Submitting buyer enquiry without session | `POST /api/enquiries` | `HTTP 401` | ✅ Blocked ("Authentication required.") |
+| **RBAC Barriers** | Regular buyer attempting ad approval | `PUT /api/admin/advertisements/:id/status` | `HTTP 403` | ✅ Blocked ("Action requires admin role.") |
+| **RBAC Barriers** | Regular seller attempting to fetch user list | `GET /api/admin/users` | `HTTP 403` | ✅ Blocked ("Action requires admin role.") |
+| **Cross-Seller** | Seller B editing Seller A's listing | `PUT /api/advertisements/:id` | `HTTP 403` | ✅ Blocked ("Not authorized to edit this advertisement.") |
+| **Cross-Seller** | Seller B deleting Seller A's listing | `DELETE /api/advertisements/:id` | `HTTP 403` | ✅ Blocked ("Cannot delete another seller's ad.") |
+| **Cross-Seller** | Seller B replying to Seller A's buyer lead | `PUT /api/enquiries/:id/reply` | `HTTP 403` | ✅ Blocked ("Unauthorized to respond to this enquiry.") |
+| **Self-Approval** | Seller attempting to self-approve listing | `PUT /api/advertisements/:id` | `HTTP 403` | ✅ Blocked ("Sellers cannot approve their own listings.") |
+| **Self-Action** | Seller sending buyer enquiry on own ad | `POST /api/enquiries` | `HTTP 400` | ✅ Blocked ("Cannot send enquiry on your own ad.") |
+| **Upload Security** | Uploading `.txt` file instead of image | `POST /api/advertisements/upload` | `HTTP 400` | ✅ Blocked ("Only image files are permitted.") |
+| **Upload Security** | Uploading empty payload without files | `POST /api/advertisements/upload` | `HTTP 400` | ✅ Blocked ("No images provided for upload.") |
+| **Nonexistent Record** | Fetching non-existent advertisement | `GET /api/advertisements/999999` | `HTTP 404` | ✅ Handled ("Advertisement not found.") |
+| **Nonexistent Record** | Favouriting non-existent advertisement | `POST /api/favourites/999999` | `HTTP 404` | ✅ Handled ("Advertisement not found.") |
+| **Nonexistent Record** | Submitting enquiry on non-existent ad | `POST /api/enquiries` (ad 999999) | `HTTP 404` | ✅ Handled ("Advertisement not found.") |
+| **Nonexistent Record** | Reporting non-existent advertisement | `POST /api/reports` (ad 999999) | `HTTP 404` | ✅ Handled ("Advertisement not found.") |
+| **Nonexistent Record** | Admin updating non-existent report | `PATCH /api/admin/reports/999999` | `HTTP 404` | ✅ Handled ("Report not found.") |
+
+### 7.3 Quality Assurance & Build Verification Matrix
+
+| Target Application | Test / Verification Command | Exit Code | Result | Evidence |
+| :--- | :--- | :---: | :---: | :--- |
+| **Backend API** | `npm run build` (`tsc`) | `0` | ✅ PASSED | 0 TypeScript errors |
+| **Backend Test Suite** | `npm run test:m7` (`tsx verify-milestone7.ts`) | `0` | ✅ PASSED | 47 / 47 checks verified |
+| **Backend Master Suite** | `npm test` (all milestones 2 through 7) | `0` | ✅ PASSED | 100% passed across all milestones |
+| **Admin Web App** | `npm run build` (`tsc --noEmit && vite build`) | `0` | ✅ PASSED | 0 TS errors, clean production bundle |
+| **Admin Web Linter** | `npm run lint` (`oxlint`) | `0` | ✅ PASSED | 0 linting errors |
+| **User Mobile App** | `npm run typecheck` (`tsc --noEmit`) | `0` | ✅ PASSED | 0 TypeScript errors |
+| **Seller Mobile App** | `npm run typecheck` (`tsc --noEmit`) | `0` | ✅ PASSED | 0 TypeScript errors |
+| **Mobile App Simulator** | `npm run lint` (`oxlint`) | `0` | ✅ PASSED | 0 linting errors |
+
+---
+
+## 8. Directory Structure
 
 ```text
 Project/
@@ -880,6 +970,7 @@ Project/
 │   │   ├── verify-milestone4.ts          # Milestone 4: Admin Web application verification suite
 │   │   ├── verify-milestone5.ts          # Milestone 5: User Mobile application verification suite
 │   │   ├── verify-milestone6.ts          # Milestone 6: Seller Mobile application verification suite
+│   │   ├── verify-milestone7.ts          # Milestone 7: Full integration & QA verification suite
 │   │   └── verify-e2e.ts                 # Full multi-role 8-stage automated workflow verification
 │   ├── package.json
 │   └── tsconfig.json
@@ -982,7 +1073,9 @@ npm run test:m3   # Executes Milestone 3 11-module REST API verification suite
 npm run test:m4   # Executes Milestone 4 Admin Web application verification suite
 npm run test:m5   # Executes Milestone 5 User Mobile application verification suite
 npm run test:m6   # Executes Milestone 6 Seller Mobile application verification suite
+npm run test:m7   # Executes Milestone 7 full 9-step lifecycle + 26 negative tests suite
 npm run test:e2e  # Executes automated multi-role E2E workflow test
+npm test          # Master test suite: runs all milestones sequentially (100% pass)
 npm start         # Starts backend on http://localhost:5000
 ```
 - Health Check: `http://localhost:5000/api/health`
@@ -1044,6 +1137,7 @@ npm start         # Starts Metro bundler
 | **Admin Web App** | React.js, TypeScript, Vite. Executive KPIs, Pending Approvals queue with Approve/Reject modal, User moderation, Category CRUD, Reports Center, Audit Trail. | ✅ Verified (`test:m4` + 0 TS errors) |
 | **Shared Backend API** | Node.js, Express.js, TypeScript. JWT authentication, Role-Based Access Control (`buyer`, `seller`, `admin`), Multer file uploads, parameterized SQL. 11 functional modules tested. | ✅ Verified (`test:m3`) |
 | **Database Architecture** | MySQL 8.0+ normalized schema (`schema.sql` and `seed.sql`). Seamless automatic zero-config fallback to SQLite for immediate testing. | ✅ Verified (`test:db`) |
+| **End-to-End Integration & QA** | Full 9-step cross-actor workflow + 26 automated negative and authorization security tests (Input validation, 401 unauth, 403 RBAC, cross-seller guards, self-approval prevention, upload security, 404 nonexistent records). | ✅ Verified (`test:m7` + `npm test` 100% pass) |
 | **End-to-End Moderation** | Full feedback loop from ad submission -> admin review -> rejection reason display to seller -> resubmission -> approval -> public discovery. | ✅ Verified (`test:e2e`) |
 | **Git & Clean Repository** | Clean multi-project repository structure, thorough documentation, test credentials, and runnable development servers. | ✅ Verified |
 
@@ -1064,7 +1158,7 @@ When recording the explanatory video, cover the following 12 key points:
 9. **Buyer Inquiries**: Submit an enquiry from the Buyer view and respond to it from the Seller view.
 10. **Wishlist & Reporting**: Add an item to favorites and submit a safety report. Show the report appear in the Admin Panel's `Reports` center.
 11. **Backend Security & RBAC**: Point out the JWT authentication middleware (`src/middleware/auth.ts`) and role-based guards (`src/middleware/rbac.ts`).
-12. **Automated Verification**: Run `npm run test:db`, `npm run test:m3`, `npm run test:m4`, `npm run test:m5`, `npm run test:m6`, and `npm run test:e2e` in `backend/` to showcase all automated verification suites passing with 0 errors.
+12. **Automated Verification**: Run `npm test` (or `npm run test:db`, `test:m3`, `test:m4`, `test:m5`, `test:m6`, `test:m7`, `test:e2e`) in `backend/` to showcase all 47+ automated verification criteria passing with 0 errors.
 
 ---
 

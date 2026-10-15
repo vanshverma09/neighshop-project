@@ -43,6 +43,9 @@ router.post('/subcategories', createSubcategory);
 // Reports
 router.get('/reports', getAllReports);
 router.patch('/reports/:id', updateReportStatus);
+router.put('/reports/:id', updateReportStatus);
+router.patch('/reports/:id/status', updateReportStatus);
+router.put('/reports/:id/status', updateReportStatus);
 
 // Audit logs
 router.get('/audit-logs', getAuditLogs);
