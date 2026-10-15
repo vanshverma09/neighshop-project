@@ -9,7 +9,7 @@ export const CONFIG = {
   DEV_API_URL: 'http://localhost:5000/api',
 
   // Set to true to point mobile builds to the live deployed cloud API
-  USE_PRODUCTION: process.env.NODE_ENV === 'production' || Boolean(process.env.API_BASE_URL),
+  USE_PRODUCTION: true,
 
   get API_BASE(): string {
     if (process.env.API_BASE_URL) {
